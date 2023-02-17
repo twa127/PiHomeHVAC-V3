@@ -269,7 +269,7 @@ def get_schedule_status(
                         step_size = start_time_offset/temp_span
                         start_time_temp_offset = (high_temp - outside_temp) * step_size
                     elif outside_temp < low_temp:
-                        start_time_temp_offset = start_time_offset;
+                        start_time_temp_offset = start_time_offset
                     else:
                         start_time_temp_offset = 0;
                     start_time = start_time + datetime.timedelta(minutes =- start_time_temp_offset)
