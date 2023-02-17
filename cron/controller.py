@@ -217,7 +217,6 @@ def get_schedule_status(
                             start_time = sunrise_time
                         else:
                              start_time = sunset_time
-                        print("2", type(start_time))
                         start_time = start_time + (start_offset * 60)
                         if end_sr == 1 or end_ss == 1:
                             if end_sr == 1:
