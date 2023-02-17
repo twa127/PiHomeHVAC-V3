@@ -208,22 +208,23 @@ def get_schedule_status(
                 if cur.rowcount > 0:
                     weather = cur.fetchone()
                     weather_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                    sunrise_time = weather[weather_to_index["sunrise"]]
+                    sunrise_time = int(weather[weather_to_index["sunrise"]])
 #                    sunrise_time = datetime.datetime.fromtimestamp(sunrise_time).strftime("%H:%M:%S")
-                    sunset_time = weather[weather_to_index["sunset"]]
+                    sunset_time = int(weather[weather_to_index["sunset"]])
 #                    sunset_time = datetime.datetime.fromtimestamp(sunset_time).strftime("%H:%M:%S")
                     if start_sr == 1 or start_ss == 1:
                         if start_sr == 1:
                             start_time = sunrise_time
                         else:
                              start_time = sunset_time
-                        start_time = start_time + datetime.timedelta(minutes = start_offset)
+                        print("2", type(start_time))
+                        start_time = start_time + (start_offset * 60)
                         if end_sr == 1 or end_ss == 1:
                             if end_sr == 1:
                                 end_time = sunrise_time
                             else:
                                 end_time = sunset_time
-                            end_time = end_time + datetime.timedelta(minutes = end_offset)
+                            end_time = end_time + (end_offset * 60);
             cur.execute(
                 "SELECT * FROM schedule_time_temp_offset WHERE schedule_daily_time_id = %s AND status = 1 LIMIT 1;",
                 (time_id,),
@@ -272,7 +273,7 @@ def get_schedule_status(
                         start_time_temp_offset = start_time_offset
                     else:
                         start_time_temp_offset = 0;
-                    start_time = start_time + datetime.timedelta(minutes =- start_time_temp_offset)
+                    start_time = start_time - (start_time_temp_offset * 60)
 
             if (end_time > start_time and time_now > start_time and time_now < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and time_now < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and time_now > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == "1":
                 sch_status = 1
