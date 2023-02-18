@@ -2664,8 +2664,8 @@ try:
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
                             cur.execute(
-                                "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [node_id, on_relay_child_id],
+                                "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                [new_system_controller_status, node_id, on_relay_child_id],
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
@@ -2680,8 +2680,8 @@ try:
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                         node_id = node[node_to_index["node_id"]]
                         cur.execute(
-                            "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                            [node_id, fan_relay_child_id],
+                            "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                            [new_system_controller_status, node_id, fan_relay_child_id],
                         )
                         con.commit()  # commit above
                         if dbgLevel >= 2:
