@@ -2204,8 +2204,8 @@ try:
                         zp = "Pump"
                     else:
                         zp = "Zone"
-                    if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Controller: " + bc.red + str(zone_controler_id) + bc.ENDC + " Controller Child: " + bc.red + str(zone_controler_child_id) + bc.ENDC + " Status: " + bc.red + str(zone_status) + bc.ENDC)
+                if dbgLevel >= 2:
+                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Controller: " + bc.red + str(zone_controler_id) + bc.ENDC + " Controller Child: " + bc.red + str(zone_controler_child_id) + bc.ENDC + " Status: " + bc.red + str(zone_status) + bc.ENDC)
 
                 if zone_category == 0 or zone_category == 3 or zone_category == 4:
                     if zone_status == 1:
