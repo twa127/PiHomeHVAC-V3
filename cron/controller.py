@@ -797,81 +797,82 @@ try:
                 if zone_category != 3:
                     manual_button_override = 0
                     for key in controllers_dict:
-                        zone_controler_id = controllers_dict[key]["controler_id"]
-                        zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                        zone_fault = 0
-                        zone_ctr_fault = 0
-                        zone_sensor_fault = 0
-
-                        #Get data from nodes table
-                        cur.execute(
-                            "SELECT * FROM nodes WHERE node_id = %s AND status IS NOT NULL LIMIT 1;",
-                            (zone_controler_id,),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            controler_type = node[node_to_index["type"]]
-                            controler_seen_time = node[node_to_index["last_seen"]]
-                            controler_notice = node[node_to_index["notice_interval"]]
-                            if controler_notice > 0:
-                                timestamp = datetime.datetime.now()
-                                if controler_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- controler_notice):
-                                    zone_fault = 1
-                                    zone_ctr_fault = 1
-                                    if dbgLevel >= 2:
-                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone valve communication timeout for This Zone. Node Last Seen: " + str(controler_seen_time))
-
-                        #if add-on controller then process state change from GUI or api call
-                        if zone_category == 2:
-                            current_state = zone_status_prev;
-                            add_on_state = controllers_dict[key]["zone_controller_state"]
+                        if key == zone_id:
+                            zone_controler_id = controllers_dict[key]["controler_id"]
                             zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                            if zone_current_mode == 74 or zone_current_mode == 75:
-                                if sch_status == 1:
-                                    if current_state != add_on_state:
-                                        cur.execute(
-                                            "UPDATE override SET status = 1, sync = '0' WHERE zone_id = %s;",
-                                            [zone_id,],
-                                        )
-                                        con.commit()  # commit above
-                                else:
-                                    if zone_override_status == 1:
-                                        cur.execute(
-                                            "UPDATE override SET status = 0, sync = '0' WHERE zone_id = %s;",
-                                            [zone_id,],
-                                        )
-                                        con.commit()  # commit above
+                            zone_fault = 0
+                            zone_ctr_fault = 0
+                            zone_sensor_fault = 0
 
-                            #check is switch has manually changed the ON/OFF state
-                            #for zones with multiple controllers - only capture the first change
-                            if 'Tasmota' in controler_type and manual_button_override == 0:
-                                if base_addr == '000.000.000.000':
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Gateway Address is Set")
-                                else:
-                                    cur.execute(
-                                        "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = 1 LIMIT 1;",
-                                        (zone_id,),
-                                    )
-                                    if cur.rowcount > 0:
-                                        http = cur.fetchone()
-                                        http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                        http_command = http[http_to_index["command"]]
-                                        url = "http://" + base_addr + zone_controler_child_id + "/cm"
-                                        cmd = "POWER"
-                                        param = "ON"
-                                        myobj = {"cmnd": "power"}
-                                        try:
-                                            x = requests.post(url, data=myobj)  # send request to Sonoff device
-                                            if x.status_code == 200:
-                                                if x.json().get(cmd) == param:
-                                                    new_add_on_state = 1
-                                                else:
-                                                    new_add_on_state = 0
-                                                if manual_button_override == 0 and current_state != new_add_on_state:
-                                                    manual_button_override = 1
-                                        except:
-                                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
+                            #Get data from nodes table
+                            cur.execute(
+                                "SELECT * FROM nodes WHERE node_id = %s AND status IS NOT NULL LIMIT 1;",
+                                (zone_controler_id,),
+                            )
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                controler_type = node[node_to_index["type"]]
+                                controler_seen_time = node[node_to_index["last_seen"]]
+                                controler_notice = node[node_to_index["notice_interval"]]
+                                if controler_notice > 0:
+                                    timestamp = datetime.datetime.now()
+                                    if controler_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- controler_notice):
+                                        zone_fault = 1
+                                        zone_ctr_fault = 1
+                                        if dbgLevel >= 2:
+                                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone valve communication timeout for This Zone. Node Last Seen: " + str(controler_seen_time))
+
+                            #if add-on controller then process state change from GUI or api call
+                            if zone_category == 2:
+                                current_state = zone_status_prev;
+                                add_on_state = controllers_dict[key]["zone_controller_state"]
+                                zone_controler_child_id = controllers_dict[key]["controler_child_id"]
+                                if zone_current_mode == 74 or zone_current_mode == 75:
+                                    if sch_status == 1:
+                                        if current_state != add_on_state:
+                                            cur.execute(
+                                                "UPDATE override SET status = 1, sync = '0' WHERE zone_id = %s;",
+                                                [zone_id,],
+                                            )
+                                            con.commit()  # commit above
+                                    else:
+                                        if zone_override_status == 1:
+                                            cur.execute(
+                                                "UPDATE override SET status = 0, sync = '0' WHERE zone_id = %s;",
+                                                [zone_id,],
+                                            )
+                                            con.commit()  # commit above
+
+                                #check is switch has manually changed the ON/OFF state
+                                #for zones with multiple controllers - only capture the first change
+                                if 'Tasmota' in controler_type and manual_button_override == 0:
+                                    if base_addr == '000.000.000.000':
+                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Gateway Address is Set")
+                                    else:
+                                        cur.execute(
+                                            "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = 1 LIMIT 1;",
+                                            (zone_id,),
+                                        )
+                                        if cur.rowcount > 0:
+                                            http = cur.fetchone()
+                                            http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                            http_command = http[http_to_index["command"]]
+                                            url = "http://" + base_addr + zone_controler_child_id + "/cm"
+                                            cmd = "POWER"
+                                            param = "ON"
+                                            myobj = {"cmnd": "power"}
+                                            try:
+                                                x = requests.post(url, data=myobj)  # send request to Sonoff device
+                                                if x.status_code == 200:
+                                                    if x.json().get(cmd) == param:
+                                                        new_add_on_state = 1
+                                                    else:
+                                                        new_add_on_state = 0
+                                                    if manual_button_override == 0 and current_state != new_add_on_state:
+                                                        manual_button_override = 1
+                                            except:
+                                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
 
                     #if there has been an external update to any of the relays associated with this zone (both Tasmota and MySensor), then update MaxAir to capture the new state
                     #will update the following tables - messages_out, zone, zone_relays, zone_current state and override
