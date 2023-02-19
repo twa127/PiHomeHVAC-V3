@@ -2595,7 +2595,6 @@ try:
                             node = cur.fetchone()
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
-                            print("1",node_id, off_relay_child_id)
                             cur.execute(
                                 "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                 [node_id, off_relay_child_id],
@@ -2612,7 +2611,6 @@ try:
                             node = cur.fetchone()
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
-                            print("2",node_id, on_relay_child_id)
                             cur.execute(
                                 "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                 [new_system_controller_status ,node_id, on_relay_child_id],
@@ -2629,7 +2627,6 @@ try:
                         node = cur.fetchone()
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                         node_id = node[node_to_index["node_id"]]
-                        print("3",node_id, fan_relay_child_id)
                         cur.execute(
                             "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                             [new_system_controller_status ,node_id, fan_relay_child_id],
@@ -2786,7 +2783,6 @@ try:
                         node = cur.fetchone()
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                         node_id = node[node_to_index["node_id"]]
-                        print("4",node_id, heat_relay_child_id)
                         cur.execute(
                             "UPDATE messages_out SET sent = 0, payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
                             [new_system_controller_status, node_id, heat_relay_child_id],
@@ -2804,7 +2800,6 @@ try:
                         if cur.rowcount > 0:
                             node = cur.fetchone()
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            print("5",node_id, cool_relay_child_id)
                             node_id = node[node_to_index["node_id"]]
                             cur.execute(
                                 "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
@@ -2821,13 +2816,11 @@ try:
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
                             if active_sc_mode == 5: # HVAC fan ON if set to fan mode, else turn OFF
-                                print("6",node_id, cool_relay_child_id)
                                 cur.execute(
                                     "UPDATE messages_out SET sent = 0, payload = '1' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                     [node_id, cool_relay_child_id],
                                  )
                             else:
-                                print("7",node_id, cool_relay_child_id)
                                 cur.execute(
                                     "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                     [new_system_controller_status, node_id, cool_relay_child_id],
