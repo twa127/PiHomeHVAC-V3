@@ -763,7 +763,8 @@ try:
                     sch_c = 0
                     sch_holidays = 0
                 else:
-                    sch_end_time = datetime.datetime.fromtimestamp(rval['end_time']).strftime('%H:%M:%S')
+                    sch_end_time_str = datetime.datetime.fromtimestamp(rval['end_time']).strftime('%d/%m/%Y %H:%M:%S')
+                    sch_end_time = rval['end_time']
                     sch_status = rval['sch_status']
                     time_id = rval['time_id']
                     cur.execute(
@@ -779,7 +780,6 @@ try:
                             sch_holidays = 1
                         else:
                             sch_holidays = 0
-
 
                 #query to check override status and get temperature from override table
                 cur.execute(
@@ -1080,7 +1080,7 @@ try:
     #                    nc_end_time_rc = nc_end_time_rc.strftime('%H:%M:%S')
     #                    timestamp = datetime.datetime.now().strftime('%H:%M:%S')
                         nc_end_time_rc = datetime.datetime.now()+ datetime.timedelta(minutes = 10)
-                        nc_end_time_rc = nc_end_time_rc.strftime('%H:%M:%S')
+                        nc_end_time_rc_str = nc_end_time_rc.strftime('%d/%m/%Y %H:%M:%S')
                         timestamp = datetime.datetime.now().time()
                         if away_sch == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), timestamp) and nc_time_status =='1' and nc_zone_status =='1' and nc_weekday > 0:
                             if dbgLevel >= 2:
@@ -1312,7 +1312,7 @@ try:
                                                     zone_status = 1
                                                     zone_mode = 71
                                                     start_cause = "Schedule Override Started"
-                                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                                    expected_end_date_time = sch_end_time_str
                                                     zone_state = 1
                                                 if zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                     zone_status = zone_status_prev
@@ -1333,15 +1333,13 @@ try:
                                                         zone_status = 1
                                                         zone_mode = 81
                                                         start_cause = "Schedule Started"
-    #                                                    expected_end_date_time = datetime.datetime.now().strftime("%Y-%m-%d ") + sch_end_time
-                                                        expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                                        expected_end_date_time = sch_end_time_str
                                                         zone_state = 1
                                                     if (system_controller_mode == 0 and sch_status == 1 and zone_c < temp_cut_out_rising) and (sch_coop == 1 and system_controller_mode == 0) and system_controller_active_status == 0:
                                                         zone_status = 0
                                                         zone_mode = 83
                                                         stop_cause = "Coop Start Schedule Waiting for Controller Start"
-    #                                                    expected_end_date_time = datetime.datetime.now().strftime("%Y-%m-%d ") + sch_end_time
-                                                        expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                                        expected_end_date_time = sch_end_time_str
                                                         zone_state = 0
                                                     if sch_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                         zone_status = zone_status_prev
@@ -1368,29 +1366,25 @@ try:
                                                     zone_status = 1
                                                     zone_mode = 51
                                                     start_cause = "Night Climate"
-    #                                                expected_end_date_time = datetime.datetime.now().strftime("%Y-%m-%d ") + nc_end_time_rc
-                                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                                    expected_end_date_time = nc_end_time_rc_str
                                                     zone_state = 1
                                                 elif night_climate_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                     zone_status = zone_status_prev
                                                     zone_mode = 52 - zone_status_prev
                                                     start_causec = "Night Climate Deadband"
                                                     stop_cause = "Night Climate Deadband"
-    #                                                expected_end_date_time = datetime.datetime.now().strftime("%Y-%m-%d ") + nc_end_time_rc
-                                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                                    expected_end_date_time = nc_end_time_rc_str
                                                     zone_state = zone_status_prev
                                                 elif night_climate_status == 1 and zone_c >= temp_cut_out:
                                                     zone_status = 0
                                                     zone_mode = 50
                                                     stop_cause = "Night Climate C Reached"
-    #                                                expected_end_date_time = datetime.datetime.now().strftime("%Y-%m-%d ") + nc_end_time_rc
-                                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                                    expected_end_date_time = nc_end_time_rc_str
                                                     zone_state = 0
                                             elif boost_status == 1 and zone_c < temp_cut_out_rising:
                                                 zone_status = 1
                                                 zone_mode = 61
                                                 start_cause = "Boost Active"
-    #                                            expected_end_date_time = datetime.datetime.now().strftime("%Y-%m-%d ") + boost_time
                                                 expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                 zone_state = 1
                                             elif boost_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
@@ -1586,7 +1580,6 @@ try:
                                                 zone_status = 1
                                                 zone_mode = 67
                                                 start_cause = "FAN Boost Active"
-                                                #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
                                                 expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                 zone_state = 1
                                             elif boost_mode == 4: # HEAT Boost
@@ -1594,7 +1587,6 @@ try:
                                                     zone_status= 1
                                                     zone_mode = 61
                                                     start_cause = "HEAT Boost Active"
-                                                    #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
                                                     expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                     zone_state = 1
                                                 elif zone_c >= temp_cut_out:
@@ -1608,7 +1600,6 @@ try:
                                                     zone_status = 1
                                                     zone_mode = 66
                                                     start_cause = "COOL Boost Active";
-                                                    #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
                                                     expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                     zone_state = 1
                                                 elif zone_c <= temp_cut_out_falling:
@@ -1666,7 +1657,7 @@ try:
                                             zone_status = 1
                                             zone_mode = 71
                                             start_cause = "Schedule Override Started"
-                                            expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                            expected_end_date_time = sch_end_time_str
                                             zone_state = 1
                                         if zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                             zone_status = zone_status_prev
@@ -1687,7 +1678,7 @@ try:
                                             zone_status = 1
                                             zone_mode = 111
                                             add_on_start_cause = "Schedule Started"
-                                            expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                            expected_end_date_time = sch_end_time_str
                                             zone_state = sensor_state
                                         if sch_status == 0 and sch_holidays == 1:
                                             zone_status = 0
@@ -1748,7 +1739,7 @@ try:
                                     zone_mode = 111
                                     zone_state = 1
                                     add_on_start_cause = "Schedule Started"
-                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                    expected_end_date_time = sch_end_time_str
                                 else:
                                     if add_on_state == 1 or zone_state == 1:
                                         zone_status = 1
@@ -1760,16 +1751,13 @@ try:
                                             add_on_start_cause = "Manual Override ON State"
                                         elif zone_mode == 75:
                                             add_on_stop_cause = "Manual Override OFF State"
-                                        expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                        expected_end_date_time = sch_end_time_str
                             elif boost_status == 1:
                                 zone_status = 1
                                 zone_mode = 64
                                 add_on_start_cause = "Boost Active"
                                 zone_state = 1
-                                #expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
                                 expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
-                                #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
-                                #expected_end_date_time=date('Y-m-d '.$sch_end_time.'');
                             elif zone_state == 1:
                                 if zone_current_mode == 111:
                                     zone_status = 0
@@ -1836,8 +1824,7 @@ try:
                                                 zone_status = 1
                                                 zone_mode = 71
                                                 add_on_start_cause = "Schedule Override Started"
-                                                #expected_end_date_time=date('Y-m-d '.sch_end_time.'')
-                                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                                expected_end_date_time = sch_end_time_str
                                                 zone_state = 1
                                             if zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                 zone_status = zone_status_prev
@@ -1859,8 +1846,7 @@ try:
                                                     zone_mode = 111
                                                     add_on_start_cause = "Schedule Started"
                                                     add_on_stop_cause = "Schedule Started"
-                                                    #expected_end_date_time=date('Y-m-d '.sch_end_time.'')
-                                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                                    expected_end_date_time = sch_end_time_str
                                                     zone_state = 1
                                                 if sch_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                     zone_status = zone_status_prev
@@ -1887,29 +1873,25 @@ try:
                                                 zone_status = 1
                                                 zone_mode = 51
                                                 add_on_start_cause = "Night Climate"
-                                                #expected_end_date_time=date('Y-m-d '.$nc_end_time_rc.'')
-                                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                                expected_end_date_time = nc_end_time_rc_str
                                                 zone_state = 1
                                             elif night_climate_status== 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                 zone_status = zone_status_prev
                                                 zone_mode = 52 - zone_status_prev
                                                 add_on_start_cause = "Night Climate Deadband"
                                                 add_on_stop_cause = "Night Climate Deadband"
-                                                #expected_end_date_time=date('Y-m-d '.$nc_end_time_rc.'')
-                                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                                expected_end_date_time = nc_end_time_rc_str
                                                 zone_state = zone_status_prev
                                             elif night_climate_status == 1 and zone_c >= temp_cut_out:
                                                 zone_status = 0
                                                 zone_mode = 50
                                                 add_on_stop_cause = "Night Climate C Reached"
-                                                #expected_end_date_time=date('Y-m-d '.$nc_end_time_rc.'')
-                                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                                expected_end_date_time = nc_end_time_rc_str
                                                 zone_state = 0
                                         elif boost_status == 1 and zone_c < temp_cut_out_rising:
                                             zone_status = 1
                                             zone_mode = 61
                                             add_on_start_cause = "Boost Active"
-                                            #expected_end_date_time=date('Y-m-d H:i:s', $boost_time)
                                             expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                             zone_state = 1
                                         elif boost_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
@@ -1974,8 +1956,7 @@ try:
                                             zone_status= 1
                                             zone_mode = 71
                                             start_cause = "Schedule Override Started"
-                                            #expected_end_date_time=date('Y-m-d '.sch_end_time.'')
-                                            expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                            expected_end_date_time = sch_end_time_str
                                             zone_state = 1
                                         if zone_c <= temp_cut_out_falling and zone_c > temp_cut_out:
                                             zone_status = zone_status_prev
@@ -1996,8 +1977,7 @@ try:
                                                 zone_status= 1
                                                 zone_mode = 111
                                                 add_on_start_cause = "Schedule Started"
-                                                #expected_end_date_time=date('Y-m-d '.sch_end_time.'')
-                                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                                expected_end_date_time = sch_end_time_str
                                                 zone_state = 1
                                             if sch_status == 1 and zone_c <= temp_cut_out_falling and zone_c > temp_cut_out:
                                                 zone_status = zone_status_prev
@@ -2024,29 +2004,25 @@ try:
                                             zone_status = 1
                                             zone_mode = 51
                                             add_on_start_cause = "Night Climate"
-                                            #expected_end_date_time=date('Y-m-d '.$nc_end_time_rc.'')
-                                            expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                            expected_end_date_time = nc_end_time_rc_str
                                             zone_state = 1
                                         elif night_climate_status == 1 and zone_c <= temp_cut_out_falling and zone_c > temp_cut_out:
                                             zone_status = zone_status_prev
                                             zone_mode = 52 - zone_status_prev
                                             add_on_start_cause = "Night Climate Deadband"
                                             add_on_stop_cause = "Night Climate Deadband"
-                                            #expected_end_date_time=date('Y-m-d '.$nc_end_time_rc.'')
-                                            expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                            expected_end_date_time = nc_end_time_rc_str
                                             zone_state = zone_status_prev
                                         elif night_climate_status == 1 and zone_c <= temp_cut_out:
                                             zone_status = 0
                                             zone_mode = 50
                                             add_on_stop_cause = "Night Climate C Reached"
-                                            #expected_end_date_time=date('Y-m-d '.$nc_end_time_rc.'')
-                                            expected_end_date_time = datetime.datetime.strptime(today_date + " " + nc_end_time_rc, '%d/%m/%Y %H:%M:%S')
+                                            expected_end_date_time = nc_end_time_rc_str
                                             zone_state = 0
                                     elif boost_status == 1 and zone_c > temp_cut_out_falling:
                                         zone_status= 1
                                         zone_mode = 61
                                         add_on_start_cause = "Boost Active"
-                                        #expected_end_date_time=date('Y-m-d H:i:s', boost_time)
                                         expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                         zone_state = 1
                                     elif boost_status == 1 and zone_c <= temp_cut_out_falling and zone_c > temp_cut_out:
