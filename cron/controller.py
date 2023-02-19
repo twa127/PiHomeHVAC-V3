@@ -992,12 +992,12 @@ try:
                         boost_active = 1
                         if dbgLevel >= 2:
                             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Boost is Active for This Zone")
-                    elif (timestamp - boost_time).total_seconds() >= (boost_minute * 60) and  boost_status == 1:
+                    elif datetime.datetime.now() >= boost_time + datetime.timedelta(minutes = boost_minute) and  boost_status == 1:
                         boost_active = 0
                         #You can comment out if you dont have Boost Button Console installed.
                         cur.execute(
                             "SELECT * FROM boost WHERE zone_id = %s AND status = '1';",
-                            (m[messages_out_to_index["id"]], ),
+                            (zone_id, ),
                         )
                         if cur.rowcount > 0:
                             brow = cur.fetchone()
@@ -1006,13 +1006,13 @@ try:
                             boost_button_child_id = brow[brow_to_index['boost_button_child_id']]
                             cur.execute(
                                 "UPDATE messages_out SET payload = %s, sent = '0' WHERE zone_id = %s AND node_id = %s AND child_id = %s LIMIT 1;",
-                                [str(boost_active), m[messages_out_to_index["id"]], boost_button_id, boost_button_child_id],
+                                [str(boost_active), zone_id, boost_button_id, boost_button_child_id],
                             )
                             con.commit()  # commit above
                             #update Boost Records in database
                             cur.execute(
                                 "UPDATE boost SET status = %s, sync = '0' WHERE zone_id = %s AND status = '1';",
-                                [str(boost_active), m[messages_out_to_index["id"]]],
+                                [str(boost_active), zone_id],
                             )
                             con.commit()  # commit above
                     else:
