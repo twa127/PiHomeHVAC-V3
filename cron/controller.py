@@ -2853,12 +2853,12 @@ try:
                             if active_sc_mode == 5: #HVAC fan ON if set to fan mode, else turn OFF
                                 cur.execute(
                                     "UPDATE messages_out SET sent = 0, payload = '1' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                    [node_id, cool_relay_child_id],
+                                    [node_id, fan_relay_child_id],
                                 )
                             else:
                                 cur.execute(
                                     "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                    [new_system_controller_status, node_id, heat_relay_child_id],
+                                    [new_system_controller_status, node_id, fan_relay_child_id],
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
