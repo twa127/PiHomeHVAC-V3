@@ -797,82 +797,81 @@ try:
                 if zone_category != 3:
                     manual_button_override = 0
                     for key in controllers_dict:
-                        if key == zone_id:
-                            zone_controler_id = controllers_dict[key]["controler_id"]
+                        zone_controler_id = controllers_dict[key]["controler_id"]
+                        zone_controler_child_id = controllers_dict[key]["controler_child_id"]
+                        zone_fault = 0
+                        zone_ctr_fault = 0
+                        zone_sensor_fault = 0
+
+                        #Get data from nodes table
+                        cur.execute(
+                            "SELECT * FROM nodes WHERE node_id = %s AND status IS NOT NULL LIMIT 1;",
+                            (zone_controler_id,),
+                        )
+                        if cur.rowcount > 0:
+                            node = cur.fetchone()
+                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                            controler_type = node[node_to_index["type"]]
+                            controler_seen_time = node[node_to_index["last_seen"]]
+                            controler_notice = node[node_to_index["notice_interval"]]
+                            if controler_notice > 0:
+                                timestamp = datetime.datetime.now()
+                                if controler_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- controler_notice):
+                                    zone_fault = 1
+                                    zone_ctr_fault = 1
+                                    if dbgLevel >= 2:
+                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone valve communication timeout for This Zone. Node Last Seen: " + str(controler_seen_time))
+
+                        #if add-on controller then process state change from GUI or api call
+                        if zone_category == 2:
+                            current_state = zone_status_prev;
+                            add_on_state = controllers_dict[key]["zone_controller_state"]
                             zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                            zone_fault = 0
-                            zone_ctr_fault = 0
-                            zone_sensor_fault = 0
-
-                            #Get data from nodes table
-                            cur.execute(
-                                "SELECT * FROM nodes WHERE node_id = %s AND status IS NOT NULL LIMIT 1;",
-                                (zone_controler_id,),
-                            )
-                            if cur.rowcount > 0:
-                                node = cur.fetchone()
-                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                controler_type = node[node_to_index["type"]]
-                                controler_seen_time = node[node_to_index["last_seen"]]
-                                controler_notice = node[node_to_index["notice_interval"]]
-                                if controler_notice > 0:
-                                    timestamp = datetime.datetime.now()
-                                    if controler_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- controler_notice):
-                                        zone_fault = 1
-                                        zone_ctr_fault = 1
-                                        if dbgLevel >= 2:
-                                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone valve communication timeout for This Zone. Node Last Seen: " + str(controler_seen_time))
-
-                            #if add-on controller then process state change from GUI or api call
-                            if zone_category == 2:
-                                current_state = zone_status_prev;
-                                add_on_state = controllers_dict[key]["zone_controller_state"]
-                                zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                                if zone_current_mode == 74 or zone_current_mode == 75:
-                                    if sch_status == 1:
-                                        if current_state != add_on_state:
-                                            cur.execute(
-                                                "UPDATE override SET status = 1, sync = '0' WHERE zone_id = %s;",
-                                                [zone_id,],
-                                            )
-                                            con.commit()  # commit above
-                                    else:
-                                        if zone_override_status == 1:
-                                            cur.execute(
-                                                "UPDATE override SET status = 0, sync = '0' WHERE zone_id = %s;",
-                                                [zone_id,],
-                                            )
-                                            con.commit()  # commit above
-
-                                #check is switch has manually changed the ON/OFF state
-                                #for zones with multiple controllers - only capture the first change
-                                if 'Tasmota' in controler_type and manual_button_override == 0:
-                                    if base_addr == '000.000.000.000':
-                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Gateway Address is Set")
-                                    else:
+                            if zone_current_mode == 74 or zone_current_mode == 75:
+                                if sch_status == 1:
+                                    if current_state != add_on_state:
                                         cur.execute(
-                                            "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = 1 LIMIT 1;",
-                                            (zone_id,),
+                                            "UPDATE override SET status = 1, sync = '0' WHERE zone_id = %s;",
+                                            [zone_id,],
                                         )
-                                        if cur.rowcount > 0:
-                                            http = cur.fetchone()
-                                            http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                            http_command = http[http_to_index["command"]]
-                                            url = "http://" + base_addr + zone_controler_child_id + "/cm"
-                                            cmd = "POWER"
-                                            param = "ON"
-                                            myobj = {"cmnd": "power"}
-                                            try:
-                                                x = requests.post(url, data=myobj)  # send request to Sonoff device
-                                                if x.status_code == 200:
-                                                    if x.json().get(cmd) == param:
-                                                        new_add_on_state = 1
-                                                    else:
-                                                        new_add_on_state = 0
-                                                    if manual_button_override == 0 and current_state != new_add_on_state:
-                                                        manual_button_override = 1
-                                            except:
-                                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
+                                        con.commit()  # commit above
+                                else:
+                                    if zone_override_status == 1:
+                                        cur.execute(
+                                            "UPDATE override SET status = 0, sync = '0' WHERE zone_id = %s;",
+                                            [zone_id,],
+                                        )
+                                        con.commit()  # commit above
+
+                            #check is switch has manually changed the ON/OFF state
+                            #for zones with multiple controllers - only capture the first change
+                            if 'Tasmota' in controler_type and manual_button_override == 0:
+                                if base_addr == '000.000.000.000':
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Gateway Address is Set")
+                                else:
+                                    cur.execute(
+                                        "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = 1 LIMIT 1;",
+                                        (zone_id,),
+                                    )
+                                    if cur.rowcount > 0:
+                                        http = cur.fetchone()
+                                        http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                        http_command = http[http_to_index["command"]]
+                                        url = "http://" + base_addr + zone_controler_child_id + "/cm"
+                                        cmd = "POWER"
+                                        param = "ON"
+                                        myobj = {"cmnd": "power"}
+                                        try:
+                                            x = requests.post(url, data=myobj)  # send request to Sonoff device
+                                            if x.status_code == 200:
+                                                if x.json().get(cmd) == param:
+                                                    new_add_on_state = 1
+                                                else:
+                                                    new_add_on_state = 0
+                                                if manual_button_override == 0 and current_state != new_add_on_state:
+                                                    manual_button_override = 1
+                                        except:
+                                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
 
                     #if there has been an external update to any of the relays associated with this zone (both Tasmota and MySensor), then update MaxAir to capture the new state
                     #will update the following tables - messages_out, zone, zone_relays, zone_current state and override
@@ -989,8 +988,7 @@ try:
 
                 #check boost time is passed, if it passed then update db and set to boost status to 0
                 if boost_status == 1:
-                    timestamp = datetime.datetime.now()
-                    if (timestamp - boost_time).total_seconds() < (boost_minute * 60) and  boost_status == 1:
+                    if datetime.datetime.now() < boost_time + datetime.timedelta(minutes = boost_minute):
                         boost_active = 1
                         if dbgLevel >= 2:
                             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Boost is Active for This Zone")
@@ -1188,7 +1186,7 @@ try:
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
     #                    sensor_seen_time = node[node_to_index['last_seen']] #not using this cause it updates on battery update
                         sensor_notice = node[node_to_index['notice_interval']]
-                        if sensor_notice > 0 and temp_reading_time is not None:
+                        if sensor_notice > 0 and temp_reading_time != "":
                             sensor_seen_time = temp_reading_time #using time from messages_in
                             if sensor_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- sensor_notice):
                                 zone_fault = 1
@@ -1393,7 +1391,7 @@ try:
                                                 zone_mode = 61
                                                 start_cause = "Boost Active"
     #                                            expected_end_date_time = datetime.datetime.now().strftime("%Y-%m-%d ") + boost_time
-                                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + boost_time, '%d/%m/%Y %H:%M:%S')
+                                                expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                 zone_state = 1
                                             elif boost_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                 zone_status = zone_status_prev
@@ -1589,7 +1587,7 @@ try:
                                                 zone_mode = 67
                                                 start_cause = "FAN Boost Active"
                                                 #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
-                                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + boost_time, '%d/%m/%Y %H:%M:%S')
+                                                expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                 zone_state = 1
                                             elif boost_mode == 4: # HEAT Boost
                                                 if zone_c < temp_cut_out_rising:
@@ -1597,7 +1595,7 @@ try:
                                                     zone_mode = 61
                                                     start_cause = "HEAT Boost Active"
                                                     #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
-                                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + boost, '%d/%m/%Y %H:%M:%S')
+                                                    expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                     zone_state = 1
                                                 elif zone_c >= temp_cut_out:
                                                     zone_status = 0
@@ -1611,7 +1609,7 @@ try:
                                                     zone_mode = 66
                                                     start_cause = "COOL Boost Active";
                                                     #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
-                                                    expected_end_date_time = datetime.datetime.strptime(today_date + " " + boost, '%d/%m/%Y %H:%M:%S')
+                                                    expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                                     zone_state = 1
                                                 elif zone_c <= temp_cut_out_falling:
                                                     zone_status = 0
@@ -1768,7 +1766,8 @@ try:
                                 zone_mode = 64
                                 add_on_start_cause = "Boost Active"
                                 zone_state = 1
-                                expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                #expected_end_date_time = datetime.datetime.strptime(today_date + " " + sch_end_time, '%d/%m/%Y %H:%M:%S')
+                                expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                 #expected_end_date_time=date('Y-m-d H:i:s', $boost_time);
                                 #expected_end_date_time=date('Y-m-d '.$sch_end_time.'');
                             elif zone_state == 1:
@@ -1911,7 +1910,7 @@ try:
                                             zone_mode = 61
                                             add_on_start_cause = "Boost Active"
                                             #expected_end_date_time=date('Y-m-d H:i:s', $boost_time)
-                                            expected_end_date_time = datetime.datetime.strptime(today_date + " " + boost_time, '%d/%m/%Y %H:%M:%S')
+                                            expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                             zone_state = 1
                                         elif boost_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                             zone_status = zone_status_prev
@@ -2048,7 +2047,7 @@ try:
                                         zone_mode = 61
                                         add_on_start_cause = "Boost Active"
                                         #expected_end_date_time=date('Y-m-d H:i:s', boost_time)
-                                        expected_end_date_time = datetime.datetime.strptime(today_date + " " + boost_time, '%d/%m/%Y %H:%M:%S')
+                                        expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                         zone_state = 1
                                     elif boost_status == 1 and zone_c <= temp_cut_out_falling and zone_c > temp_cut_out:
                                         zone_status = zone_status_prev
@@ -2596,6 +2595,7 @@ try:
                             node = cur.fetchone()
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
+                            print("1",node_id, off_relay_child_id)
                             cur.execute(
                                 "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                 [node_id, off_relay_child_id],
@@ -2612,6 +2612,7 @@ try:
                             node = cur.fetchone()
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
+                            print("2",node_id, on_relay_child_id)
                             cur.execute(
                                 "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                 [new_system_controller_status ,node_id, on_relay_child_id],
@@ -2628,6 +2629,7 @@ try:
                         node = cur.fetchone()
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                         node_id = node[node_to_index["node_id"]]
+                        print("3",node_id, fan_relay_child_id)
                         cur.execute(
                             "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                             [new_system_controller_status ,node_id, fan_relay_child_id],
@@ -2666,8 +2668,8 @@ try:
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
                             cur.execute(
-                                "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [new_system_controller_status, node_id, on_relay_child_id],
+                                "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                [node_id, on_relay_child_id],
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
@@ -2682,8 +2684,8 @@ try:
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                         node_id = node[node_to_index["node_id"]]
                         cur.execute(
-                            "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                            [new_system_controller_status, node_id, fan_relay_child_id],
+                            "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                            [node_id, fan_relay_child_id],
                         )
                         con.commit()  # commit above
                         if dbgLevel >= 2:
@@ -2784,6 +2786,7 @@ try:
                         node = cur.fetchone()
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                         node_id = node[node_to_index["node_id"]]
+                        print("4",node_id, heat_relay_child_id)
                         cur.execute(
                             "UPDATE messages_out SET sent = 0, payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
                             [new_system_controller_status, node_id, heat_relay_child_id],
@@ -2801,6 +2804,7 @@ try:
                         if cur.rowcount > 0:
                             node = cur.fetchone()
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                            print("5",node_id, cool_relay_child_id)
                             node_id = node[node_to_index["node_id"]]
                             cur.execute(
                                 "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
@@ -2817,11 +2821,13 @@ try:
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
                             if active_sc_mode == 5: # HVAC fan ON if set to fan mode, else turn OFF
+                                print("6",node_id, cool_relay_child_id)
                                 cur.execute(
                                     "UPDATE messages_out SET sent = 0, payload = '1' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                     [node_id, cool_relay_child_id],
                                  )
                             else:
+                                print("7",node_id, cool_relay_child_id)
                                 cur.execute(
                                     "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                     [new_system_controller_status, node_id, cool_relay_child_id],
