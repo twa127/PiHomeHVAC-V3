@@ -763,7 +763,7 @@ try:
                     sch_c = 0
                     sch_holidays = 0
                 else:
-                    sch_end_time_str = datetime.datetime.fromtimestamp(rval['end_time']).strftime('%d/%m/%Y %H:%M:%S')
+                    sch_end_time_str = datetime.datetime.fromtimestamp(rval['end_time']).strftime('%Y-%m-%d %H:%M:%S')
                     sch_end_time = rval['end_time']
                     sch_status = rval['sch_status']
                     time_id = rval['time_id']
@@ -992,12 +992,12 @@ try:
                         boost_active = 1
                         if dbgLevel >= 2:
                             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Boost is Active for This Zone")
-                    elif (timestamp - boost_time).total_seconds() >= (boost_minute * 60) and  boost_status == 1:
+                    elif datetime.datetime.now() >= boost_time + datetime.timedelta(minutes = boost_minute) and  boost_status == 1:
                         boost_active = 0
                         #You can comment out if you dont have Boost Button Console installed.
                         cur.execute(
                             "SELECT * FROM boost WHERE zone_id = %s AND status = '1';",
-                            (m[messages_out_to_index["id"]], ),
+                            (zone_id, ),
                         )
                         if cur.rowcount > 0:
                             brow = cur.fetchone()
@@ -1006,13 +1006,13 @@ try:
                             boost_button_child_id = brow[brow_to_index['boost_button_child_id']]
                             cur.execute(
                                 "UPDATE messages_out SET payload = %s, sent = '0' WHERE zone_id = %s AND node_id = %s AND child_id = %s LIMIT 1;",
-                                [str(boost_active), m[messages_out_to_index["id"]], boost_button_id, boost_button_child_id],
+                                [str(boost_active), zone_id, boost_button_id, boost_button_child_id],
                             )
                             con.commit()  # commit above
                             #update Boost Records in database
                             cur.execute(
                                 "UPDATE boost SET status = %s, sync = '0' WHERE zone_id = %s AND status = '1';",
-                                [str(boost_active), m[messages_out_to_index["id"]]],
+                                [str(boost_active), zone_id],
                             )
                             con.commit()  # commit above
                     else:
@@ -1080,7 +1080,7 @@ try:
     #                    nc_end_time_rc = nc_end_time_rc.strftime('%H:%M:%S')
     #                    timestamp = datetime.datetime.now().strftime('%H:%M:%S')
                         nc_end_time_rc = datetime.datetime.now()+ datetime.timedelta(minutes = 10)
-                        nc_end_time_rc_str = nc_end_time_rc.strftime('%d/%m/%Y %H:%M:%S')
+                        nc_end_time_rc_str = nc_end_time_rc.strftime('%Y-%m-%d %H:%M:%S')
                         timestamp = datetime.datetime.now().time()
                         if away_sch == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), timestamp) and nc_time_status =='1' and nc_zone_status =='1' and nc_weekday > 0:
                             if dbgLevel >= 2:
@@ -2641,8 +2641,8 @@ try:
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             node_id = node[node_to_index["node_id"]]
                             cur.execute(
-                                "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [node_id, on_relay_child_id],
+                                "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                [new_system_controller_status, node_id, on_relay_child_id],
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
@@ -2657,8 +2657,8 @@ try:
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                         node_id = node[node_to_index["node_id"]]
                         cur.execute(
-                            "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                            [node_id, fan_relay_child_id],
+                            "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                            [new_system_controller_status, node_id, fan_relay_child_id],
                         )
                         con.commit()  # commit above
                         if dbgLevel >= 2:
