@@ -2248,15 +2248,13 @@ try:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
                             if zone_mode == 111 or zone_mode == 114 or zone_mode == 21 or  zone_mode == 10:
-                                param = None
+                                qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
-                                param = expected_end_date_time
+                                qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
                             try:
-                                cur.execute(
-                                    """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
-                                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s);""",
-                                    (0, 0, zone_id, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), add_on_start_cause, None, None, param),
-                                )
+                                cur.execute(qry_str)
                                 con.commit()
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table updated Successfully.")
@@ -2265,15 +2263,13 @@ try:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
                         elif zone_status_prev == '0' and  (zone_status == 1 or zone_state  == 1):
                             if zone_mode == 111 or zone_mode == 114 or zone_mode == 21 or  zone_mode == 10 or  zone_mode == 141:
-                                param = None
+                                qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
-                                param = expected_end_date_time
+                                qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
                             try:
-                                cur.execute(
-                                    """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
-                                    VALUES(%s,%s,%s,%s,%s,%s,%s,%s);""",
-                                    (0, 0, zone_id, datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), add_on_start_cause, None, None, None),
-                                )
+                                cur.execute(qry_str)
                                 con.commit()
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
@@ -2686,9 +2682,11 @@ try:
                     #insert date and time into Log table so we can record system controller start date and time.
                     if zone_log_dict[key] == 1:
                         if expected_end_date_time is not None:
-                            qry_str = "INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                            qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, 
+                                      `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                         else:
-                            qry_str = "INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
+                            qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                      `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
                         try:
                             cur.execute(qry_str)
                             con.commit()
@@ -2700,9 +2698,11 @@ try:
                 #end foreach($zone_log as $key => $value)
                 #insert date and time into system controller log table so we can record system controller start date and time.
                 if expected_end_date_time is not None:
-                    qry_str = "INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                    qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
+                              VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                 else:
-                    qry_str = "INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
+                    qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
+                              VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
                 try:
                     cur.execute(qry_str)
                     con.commit()
@@ -2715,12 +2715,14 @@ try:
                 for key in zone_log_dict:
                     if zone_log_dict[key] != z_state_dict[key]:
                         if zone_log_dict[key] == 0:
-                            qry_str = "UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
+                            qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
                         else:
                             if expected_end_date_time is not None:
-                                qry_str = "INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                                qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                             else:
-                                qry_str = "INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
+                                qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
                         try:
                             cur.execute(qry_str)
                             con.commit()
@@ -2888,7 +2890,7 @@ try:
                 if system_controller_active_status != new_system_controller_status:
                     for key in zone_log_dict:
                         if zone_log_dict[key] != z_state_dict[key]:
-                            qry_str = "UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
+                            qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
@@ -2897,7 +2899,7 @@ try:
                             except:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
-                    qry_str = "UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, system_controller_id)
+                    qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, system_controller_id)
                     try:
                         cur.execute(qry_str)
                         con.commit()
