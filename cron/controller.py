@@ -1076,9 +1076,6 @@ try:
 
 
                         #night climate time to add 10 minuts for record purpose
-    #                    nc_end_time_rc = datetime.datetime.now()+ datetime.timedelta(minutes=10)
-    #                    nc_end_time_rc = nc_end_time_rc.strftime('%H:%M:%S')
-    #                    timestamp = datetime.datetime.now().strftime('%H:%M:%S')
                         nc_end_time_rc = datetime.datetime.now()+ datetime.timedelta(minutes = 10)
                         nc_end_time_rc_str = nc_end_time_rc.strftime('%Y-%m-%d %H:%M:%S')
                         timestamp = datetime.datetime.now().time()
@@ -2301,283 +2298,301 @@ try:
                 print("-" * line_len)
         # end for x in zones:
 
-        #***************************************************************************************
-        #                               Zone Commands loop
-        #***************************************************************************************
-        pump_relays_dict = {}
-        for zc in zone_commands_dict:
-            zone_id = zone_commands_dict[zc]["zone_id"]
-            zone_category = zone_commands_dict[zc]["zone_category"]
-            zone_name = zone_commands_dict[zc]["zone_name"]
-            zone_status = zone_commands_dict[zc]["zone_status"]
-            zone_status_prev = zone_commands_dict[zc]["zone_status_prev"]
-            zone_overrun_prev = zone_commands_dict[zc]["zone_overrun_prev"]
-            zone_override_status = zone_commands_dict[zc]["zone_override_status"]
-            controllers = zone_commands_dict[zc]["controllers"]
+        #process any zones present
+        if zone_commands_dict:
+            #***************************************************************************************
+            #                               Zone Commands loop
+            #***************************************************************************************
+            pump_relays_dict = {}
+            for zc in zone_commands_dict:
+                zone_id = zone_commands_dict[zc]["zone_id"]
+                zone_category = zone_commands_dict[zc]["zone_category"]
+                zone_name = zone_commands_dict[zc]["zone_name"]
+                zone_status = zone_commands_dict[zc]["zone_status"]
+                zone_status_prev = zone_commands_dict[zc]["zone_status_prev"]
+                zone_overrun_prev = zone_commands_dict[zc]["zone_overrun_prev"]
+                zone_override_status = zone_commands_dict[zc]["zone_override_status"]
+                controllers = zone_commands_dict[zc]["controllers"]
 
-            #Zone category 0 and system controller is not requested calculate if overrun needed
-            if (zone_category == 0 or cz_logs_count > 0) and not 1 in system_controller_dict.values():
-                #overrun time <0 - latch overrun for the zone zone untill next system controller start
-                if system_controller_overrun_time < 0:
-                    if zone_status_prev == 1 or zone_overrun_prev == 1 or (zone_override_status == 1 and not 1 in system_controller_dict.values()):
-                        zone_overrun = 1
-                    else:
-                        zone_overrun = 0 
-                #overrun time = 0 - overrun not needed
-                elif system_controller_overrun_time == 0:
-                    zone_overrun = 0
-                #overrun time > 0
-                else:
-                    if system_controller_active_status == 1:
-                        overrun_end_time = datetime.datetime.now() + datetime.timedelta(minutes = system_controller_overrun_time)
-                        zone_overrun = zone_status_prev;
-                    #system controller was switched of previous script run
-                    else:
-                        if system_controller_stop_datetime is not None:
-                            overrun_end_time = system_controller_stop_datetime  + datetime.timedelta(minutes = system_controller_overrun_time)
-                            # if overrun flag was switched on when system controller was switching on and ovverrun did not pass keep overrun on
-                            if datetime.datetime.now() < overrun_end_time and zone_overrun_prev == 1:
-                                zone_overrun = 1
-                            else:
-                                zone_overrun = 0
+                #Zone category 0 and system controller is not requested calculate if overrun needed
+                if (zone_category == 0 or cz_logs_count > 0) and not 1 in system_controller_dict.values():
+                    #overrun time <0 - latch overrun for the zone zone untill next system controller start
+                    if system_controller_overrun_time < 0:
+                        if zone_status_prev == 1 or zone_overrun_prev == 1 or (zone_override_status == 1 and not 1 in system_controller_dict.values()):
+                            zone_overrun = 1
                         else:
                             zone_overrun = 0
-                if zone_overrun != zone_overrun_prev:
-                    cur.execute(
-                        "UPDATE zone_current_state SET `sync` = 0, overrun = %s WHERE id = %s LIMIT 1;",
-                        [zone_overrun, zone_id],
-                    )
-                    con.commit()  # commit above
-                if zone_overrun == 1:
-                    #zone status needs to be 1 when in overrun mode
-                    cur.execute(
-                        "UPDATE zone_current_state SET status = 1 WHERE id =%s LIMIT 1;",
-                        [zone_id,],
-                    )
-                    con.commit()  # commit above
-                    if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone " + str(zone_id) + " circulation pump overrun active.")
-                    if system_controller_overrun_time > 0:
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun end time " + str(overrun_end_time))
+                    #overrun time = 0 - overrun not needed
+                    elif system_controller_overrun_time == 0:
+                        zone_overrun = 0
+                    #overrun time > 0
                     else:
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun will end on the next System Controller start.")
-            else:
-                #if zone is not category 0 or system controller is running overrun not needed
-                zone_overrun = 0
-
-            if zone_status == 1 or zone_overrun == 1:
-                zone_command = 1
-            else:
-                zone_command = 0
-
-            #process all the zone relays associated with this zone
-            for key in controllers_dict:
-                if key == zone_id:
-                    zc_id = controllers_dict[key]["zc_id"]
-                    zone_controler_id = controllers_dict[key]["controler_id"]
-                    zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                    controller_relay_id = controllers_dict[key]["controller_relay_id"]
-                    zone_relay_type_id = controllers_dict[key]["relay_type_id"]
-                    zone_on_trigger = controllers_dict[key]["controler_on_trigger"]
-                    zone_controller_type = controllers_dict[key]["zone_controller_type"]
-                    manual_button_override = controllers_dict[key]["manual_button_override"]
-                    zone_controller_state = controllers_dict[key]["zone_controller_state"]
-                    if zone_controller_state == 1 or zone_overrun == 1:
-                        zone_command = 1
-                    else:
-                        zone_command = 0
-                    if zone_on_trigger == 1:
-                        relay_on = '1' #GPIO value to write to turn on attached relay
-                        relay_off = '0' # GPIO value to write to turn off attached relay
-                    else:
-                        relay_on = '0' #GPIO value to write to turn on attached relay
-                        relay_off = '1' #GPIO value to write to turn off attached relay
-                    if dbgLevel == 1:
-                        print("zone_controler_id " + str(zone_controler_id) + ", zone_controler_child_id " + str(zone_controler_child_id) + ", zone_controller_state " + str(zone_controller_state) + ", manual_button_override " + str(manual_button_override))
-                        print("relay_type_id - " + str(zone_relay_type_id))
-                        print("zone_overrun - " + str(zone_overrun) + ", manual_button_override - " + str(manual_button_override) + ", zone_command - " + str(zone_command) + ", zone_status_prev - " + str(zone_status_prev))
-    #               if (($manual_button_override == 0) || ($manual_button_override == 1 && $zone_command == 0)) {
-                    #process zone relays
-                    if zone_relay_type_id == 0:
-                        if (manual_button_override == 0 or (manual_button_override == 1 and zone_command == 0)) and (zone_command != zone_status_prev or zone_controller_type == 'MySensor'):
-                            #***************************************************************************************
-                            # Zone Valve Wired to Raspberry Pi GPIO Section: Zone Valve Connected Raspberry Pi GPIO.
-                            #****************************************************************************************
-                            if 'GPIO' in zone_controller_type:
-                                if zone_command == 1:
-                                    relay_status = relay_on
+                        if system_controller_active_status == 1:
+                            overrun_end_time = datetime.datetime.now() + datetime.timedelta(minutes = system_controller_overrun_time)
+                            zone_overrun = zone_status_prev;
+                        #system controller was switched of previous script run
+                        else:
+                            if system_controller_stop_datetime is not None:
+                                overrun_end_time = system_controller_stop_datetime  + datetime.timedelta(minutes = system_controller_overrun_time)
+                                # if overrun flag was switched on when system controller was switching on and ovverrun did not pass keep overrun on
+                                if datetime.datetime.now() < overrun_end_time and zone_overrun_prev == 1:
+                                    zone_overrun = 1
                                 else:
-                                    relay_status = relay_off
-                                if dbgLevel == 1:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: GIOP Relay Status: " + bc.red + str(relay_status) + bc.ENDC + " (" + str(relay_on) + "=On, " + str(relay_off) + "=Off)")
-                                cur.execute(
-                                    "UPDATE messages_out SET sent = '0', payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                    [str(zone_command), zone_controler_id, zone_controler_child_id],
-                                )
-                                con.commit()  # commit above
+                                    zone_overrun = 0
+                            else:
+                                zone_overrun = 0
+                    if zone_overrun != zone_overrun_prev:
+                        cur.execute(
+                            "UPDATE zone_current_state SET `sync` = 0, overrun = %s WHERE id = %s LIMIT 1;",
+                            [zone_overrun, zone_id],
+                        )
+                        con.commit()  # commit above
+                    if zone_overrun == 1:
+                        #zone status needs to be 1 when in overrun mode
+                        cur.execute(
+                            "UPDATE zone_current_state SET status = 1 WHERE id =%s LIMIT 1;",
+                            [zone_id,],
+                        )
+                        con.commit()  # commit above
+                        if dbgLevel >= 2:
+                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone " + str(zone_id) + " circulation pump overrun active.")
+                        if system_controller_overrun_time > 0:
+                            if dbgLevel >= 2:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun end time " + str(overrun_end_time))
+                        else:
+                            if dbgLevel >= 2:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun will end on the next System Controller start.")
+                else:
+                    #if zone is not category 0 or system controller is running overrun not needed
+                    zone_overrun = 0
 
-                            #***************************************************************************************
-                            # Zone Valve Wired over I2C Interface Make sure you have i2c Interface enabled 
-    	       	            #****************************************************************************************
-                            if 'I2C' in zone_controller_type:
-                                subprocess.call("/var/www/cron/i2c/i2c_relay.py " + zone_controler_id + " " + zone_controler_child_id + " " + str(zone_command), shell=True)
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Relay Board: " + zone_controler_id + " Relay No: "  + zone_controler_child_id + " Status: " + str(zone_command))
+                if zone_status == 1 or zone_overrun == 1:
+                    zone_command = 1
+                else:
+                    zone_command = 0
 
-                            #***************************************************************************************
-                            # Zone Valve Wireless Section: MySensors Wireless or MQTT Relay module for your Zone Valve control.
-                            #****************************************************************************************
-                            if 'MySensor'  in zone_controller_type or 'MQTT' in zone_controller_type:
-                                cur.execute(
-                                    "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
-                                    [str(zone_command), zone_controler_id, zone_controler_child_id],
-                                )
-                                con.commit()  # commit above
-
-                            #************************************************************************************
-                            # Sonoff Switch Section: Tasmota WiFi Relay module for your Zone control.
-                            #*************************************************************************************
-                            if 'Tasmota' in zone_controller_type:
-                                cur.execute(
-                                    "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = %s LIMIT 1;",
-                                    (zone_id, zone_command),
-                                )
-                                if cur.rowcount > 0:
-                                    http = cur.fetchone()
-                                    http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                    add_on_msg = http[http_to_index["parameter"]]
+                #process all the zone relays associated with this zone
+                for key in controllers_dict:
+                    if key == zone_id:
+                        zc_id = controllers_dict[key]["zc_id"]
+                        zone_controler_id = controllers_dict[key]["controler_id"]
+                        zone_controler_child_id = controllers_dict[key]["controler_child_id"]
+                        controller_relay_id = controllers_dict[key]["controller_relay_id"]
+                        zone_relay_type_id = controllers_dict[key]["relay_type_id"]
+                        zone_on_trigger = controllers_dict[key]["controler_on_trigger"]
+                        zone_controller_type = controllers_dict[key]["zone_controller_type"]
+                        manual_button_override = controllers_dict[key]["manual_button_override"]
+                        zone_controller_state = controllers_dict[key]["zone_controller_state"]
+                        if zone_controller_state == 1 or zone_overrun == 1:
+                            zone_command = 1
+                        else:
+                            zone_command = 0
+                        if zone_on_trigger == 1:
+                            relay_on = '1' #GPIO value to write to turn on attached relay
+                            relay_off = '0' # GPIO value to write to turn off attached relay
+                        else:
+                            relay_on = '0' #GPIO value to write to turn on attached relay
+                            relay_off = '1' #GPIO value to write to turn off attached relay
+                        if dbgLevel == 1:
+                            print("zone_controler_id " + str(zone_controler_id) + ", zone_controler_child_id " + str(zone_controler_child_id) + ", zone_controller_state " + str(zone_controller_state) + ", manual_button_override " + str(manual_button_override))
+                            print("relay_type_id - " + str(zone_relay_type_id))
+                            print("zone_overrun - " + str(zone_overrun) + ", manual_button_override - " + str(manual_button_override) + ", zone_command - " + str(zone_command) + ", zone_status_prev - " + str(zone_status_prev))
+        #               if (($manual_button_override == 0) || ($manual_button_override == 1 && $zone_command == 0)) {
+                        #process zone relays
+                        if zone_relay_type_id == 0:
+                            if (manual_button_override == 0 or (manual_button_override == 1 and zone_command == 0)) and (zone_command != zone_status_prev or zone_controller_type == 'MySensor'):
+                                #***************************************************************************************
+                                # Zone Valve Wired to Raspberry Pi GPIO Section: Zone Valve Connected Raspberry Pi GPIO.
+                                #****************************************************************************************
+                                if 'GPIO' in zone_controller_type:
+                                    if zone_command == 1:
+                                        relay_status = relay_on
+                                    else:
+                                        relay_status = relay_off
+                                    if dbgLevel == 1:
+                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: GIOP Relay Status: " + bc.red + str(relay_status) + bc.ENDC + " (" + str(relay_on) + "=On, " + str(relay_off) + "=Off)")
                                     cur.execute(
-                                        "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
-                                        [add_on_msg, zone_controler_id, zone_controler_child_id],
+                                        "UPDATE messages_out SET sent = '0', payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                        [str(zone_command), zone_controler_id, zone_controler_child_id],
                                     )
                                     con.commit()  # commit above
 
-                                    if zone_category != 3:
-                                        if zone_override_status == 0:
-                                            cur.execute(
-                                                "UPDATE zone_relays SET state = %s, current_state = %s WHERE id = %s LIMIT 1;",
-                                                [zone_command, zone_command, zc_id],
-                                            )
+                                #***************************************************************************************
+                                # Zone Valve Wired over I2C Interface Make sure you have i2c Interface enabled
+        	       	        #****************************************************************************************
+                                if 'I2C' in zone_controller_type:
+                                    subprocess.call("/var/www/cron/i2c/i2c_relay.py " + zone_controler_id + " " + zone_controler_child_id + " " + str(zone_command), shell=True)
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Relay Board: " + zone_controler_id + " Relay No: "  + zone_controler_child_id + " Status: " + str(zone_command))
+
+                                #***************************************************************************************
+                                # Zone Valve Wireless Section: MySensors Wireless or MQTT Relay module for your Zone Valve control.
+                                #****************************************************************************************
+                                if 'MySensor'  in zone_controller_type or 'MQTT' in zone_controller_type:
+                                    cur.execute(
+                                        "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
+                                        [str(zone_command), zone_controler_id, zone_controler_child_id],
+                                    )
+                                    con.commit()  # commit above
+
+                                #************************************************************************************
+                                # Sonoff Switch Section: Tasmota WiFi Relay module for your Zone control.
+                                #*************************************************************************************
+                                if 'Tasmota' in zone_controller_type:
+                                    cur.execute(
+                                        "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = %s LIMIT 1;",
+                                        (zone_id, zone_command),
+                                    )
+                                    if cur.rowcount > 0:
+                                        http = cur.fetchone()
+                                        http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                        add_on_msg = http[http_to_index["parameter"]]
+                                        cur.execute(
+                                            "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
+                                            [add_on_msg, zone_controler_id, zone_controler_child_id],
+                                        )
                                         con.commit()  # commit above
-                            #end if ($manual_button_override ==
-                    elif zone_relay_type_id == 5: #end if ($zone_relay_type_id == 0)
-                        if not pump_relays_dict: #add first pump type relay
-                            pump_relays_dict[controller_relay_id] = zone_command
-                        elif controller_relay_id in pump_relays_dict and zone_command == 1:
-                            pump_relays_dict[controller_relay_id] = zone_command
 
-            #end for ($crow = 0; $crow < count($controllers); $crow++)
-        #end for ($row = 0; $row < count($zone_commands); $row++)
+                                        if zone_category != 3:
+                                            if zone_override_status == 0:
+                                                cur.execute(
+                                                    "UPDATE zone_relays SET state = %s, current_state = %s WHERE id = %s LIMIT 1;",
+                                                    [zone_command, zone_command, zc_id],
+                                                )
+                                            con.commit()  # commit above
+                                #end if ($manual_button_override ==
+                        elif zone_relay_type_id == 5: #end if ($zone_relay_type_id == 0)
+                            if not pump_relays_dict: #add first pump type relay
+                                pump_relays_dict[controller_relay_id] = zone_command
+                            elif controller_relay_id in pump_relays_dict and zone_command == 1:
+                                pump_relays_dict[controller_relay_id] = zone_command
 
-        #process any pump relays
-        if not pump_relays_dict:
-            #array_walk($pump_relays, "process_pump_relays");
-            for key in pump_relays_dict:
-                process_pump_relays(key, pump_relays_dict[key])
+                #end for ($crow = 0; $crow < count($controllers); $crow++)
+            #end for ($row = 0; $row < count($zone_commands); $row++)
 
-        #For debug info only
-        if dbgLevel == 1:
-            print("zone_log Array and Count")
-            print(zone_log_dict)
-            print(len(zone_log_dict))
-            print("z_state Array and Count")
-            print(z_state_dict)
-            print(len(z_state_dict))
-            print("system_controller Array")
-            print(system_controller_dict)
-            print("controllers Array")
-            print(controllers_dict)
-            print("zone_commands Array")
-            print(zone_commands_dict)
-            print("pump_relays Array")
-            print(pump_relays_dict)
+            #process any pump relays
+            if not pump_relays_dict:
+                #array_walk($pump_relays, "process_pump_relays");
+                for key in pump_relays_dict:
+                    process_pump_relays(key, pump_relays_dict[key])
 
-        if system_controller_stop_datetime is not None:
-            if dbgLevel >= 2:
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Switched Off At: " + str(system_controller_stop_datetime))
+            #For debug info only
+            if dbgLevel == 1:
+                print("zone_log Array and Count")
+                print(zone_log_dict)
+                print(len(zone_log_dict))
+                print("z_state Array and Count")
+                print(z_state_dict)
+                print(len(z_state_dict))
+                print("system_controller Array")
+                print(system_controller_dict)
+                print("controllers Array")
+                print(controllers_dict)
+                print("zone_commands Array")
+                print(zone_commands_dict)
+                print("pump_relays Array")
+                print(pump_relays_dict)
 
-        if expected_end_date_time is not None:
-    #        pass
-            if dbgLevel >= 2:
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Expected End Time: " + str(expected_end_date_time))
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller ON Time: " + bc.red + str(system_controller_on_time) + bc.ENDC + " seconds")
+            if system_controller_stop_datetime is not None:
+                if dbgLevel >= 2:
+                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Switched Off At: " + str(system_controller_stop_datetime))
 
-        #***********************************
-        #  System Controller On section
-        #***********************************/
-        #Search inside array if any value is set to 1 then we need to update db with system controller status
-        if 1 in system_controller_dict.values():
-            if system_controller_mode == 1:
-                if hvac_state == 0:
-                    on_relay_id = cool_relay_id
-                    on_relay_child_id = cool_relay_child_id
-                    on_relay_type = cool_relay_type
-                    on_relay_on = cool_relay_on
-                    on_relay_off = cool_relay_off
-                    off_relay_id = heat_relay_id
-                    off_relay_child_id = heat_relay_child_id
-                    off_relay_type = heat_relay_type
-                    off_relay_on = heat_relay_on
-                    off_relay_off = heat_relay_off
+            if expected_end_date_time is not None:
+        #        pass
+                if dbgLevel >= 2:
+                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Expected End Time: " + str(expected_end_date_time))
+                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller ON Time: " + bc.red + str(system_controller_on_time) + bc.ENDC + " seconds")
+
+            #***********************************
+            #  System Controller On section
+            #***********************************/
+            #Search inside array if any value is set to 1 then we need to update db with system controller status
+            if 1 in system_controller_dict.values():
+                if system_controller_mode == 1:
+                    if hvac_state == 0:
+                        on_relay_id = cool_relay_id
+                        on_relay_child_id = cool_relay_child_id
+                        on_relay_type = cool_relay_type
+                        on_relay_on = cool_relay_on
+                        on_relay_off = cool_relay_off
+                        off_relay_id = heat_relay_id
+                        off_relay_child_id = heat_relay_child_id
+                        off_relay_type = heat_relay_type
+                        off_relay_on = heat_relay_on
+                        off_relay_off = heat_relay_off
+                    else:
+                        on_relay_id = heat_relay_id
+                        on_relay_child_id = heat_relay_child_id
+                        on_relay_type = heat_relay_type
+                        on_relay_on = heat_relay_on
+                        on_relay_off = heat_relay_off
+                        off_relay_id = cool_relay_id
+                        off_relay_child_id = cool_relay_child_id
+                        off_relay_type = cool_relay_type
+                        off_relay_on = cool_relay_on
+                        off_relay_off = cool_relay_off
                 else:
                     on_relay_id = heat_relay_id
                     on_relay_child_id = heat_relay_child_id
                     on_relay_type = heat_relay_type
                     on_relay_on = heat_relay_on
                     on_relay_off = heat_relay_off
-                    off_relay_id = cool_relay_id
-                    off_relay_child_id = cool_relay_child_id
-                    off_relay_type = cool_relay_type
-                    off_relay_on = cool_relay_on
-                    off_relay_off = cool_relay_off
-            else:
-                on_relay_id = heat_relay_id
-                on_relay_child_id = heat_relay_child_id
-                on_relay_type = heat_relay_type
-                on_relay_on = heat_relay_on
-                on_relay_off = heat_relay_off
-                off_relay_id = heat_relay_id
-                off_relay_child_id = heat_relay_child_id
-                off_relay_type = heat_relay_type
-                off_relay_on = heat_relay_on
-                off_relay_off = heat_relay_off
+                    off_relay_id = heat_relay_id
+                    off_relay_child_id = heat_relay_child_id
+                    off_relay_type = heat_relay_type
+                    off_relay_on = heat_relay_on
+                    off_relay_off = heat_relay_off
 
-            new_system_controller_status = 1
-            #change relay states on change
-            if (system_controller_active_status != new_system_controller_status) or active_sc_mode != sc_mode_prev or off_relay_type == 'MySensor' or on_relay_type == 'MySensor':
-                #update system controller active status to 1
-                cur.execute(
-                    "UPDATE system_controller SET sync = '0', active_status = %s, sc_mode_prev = %s WHERE id ='1' LIMIT 1;",
-                    [new_system_controller_status, active_sc_mode],
-                )
-                con.commit()  # commit above
+                new_system_controller_status = 1
+                #change relay states on change
+                if (system_controller_active_status != new_system_controller_status) or active_sc_mode != sc_mode_prev or off_relay_type == 'MySensor' or on_relay_type == 'MySensor':
+                    #update system controller active status to 1
+                    cur.execute(
+                        "UPDATE system_controller SET sync = '0', active_status = %s, sc_mode_prev = %s WHERE id ='1' LIMIT 1;",
+                        [new_system_controller_status, active_sc_mode],
+                    )
+                    con.commit()  # commit above
 
-                #************************************************************************************************************
-                # System Controller Wirelss Section:      MySensors Wireless or MQTT Relay module for your System Controller
-                #************************************************************************************************************
-                #update messages_out table with sent status to 0 and payload to as system controller status.
-                if active_sc_mode != 5: #process if NOT  HVAC fan only mode
-                    if system_controller_mode == 1 and (off_relay_type == 'MySensor' or off_relay_type == 'MQTT'):
-                        cur.execute(
-                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (off_relay_id, ),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            node_id = node[node_to_index["node_id"]]
+                    #************************************************************************************************************
+                    # System Controller Wirelss Section:      MySensors Wireless or MQTT Relay module for your System Controller
+                    #************************************************************************************************************
+                    #update messages_out table with sent status to 0 and payload to as system controller status.
+                    if active_sc_mode != 5: #process if NOT  HVAC fan only mode
+                        if system_controller_mode == 1 and (off_relay_type == 'MySensor' or off_relay_type == 'MQTT'):
                             cur.execute(
-                                "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [node_id, off_relay_child_id],
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (off_relay_id, ),
                             )
-                            con.commit()  # commit above
-                            if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
-                    if on_relay_type == 'MySensor' or on_relay_type == 'MQTT':
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                cur.execute(
+                                    "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                    [node_id, off_relay_child_id],
+                                )
+                                con.commit()  # commit above
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
+                        if on_relay_type == 'MySensor' or on_relay_type == 'MQTT':
+                            cur.execute(
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (on_relay_id, ),
+                            )
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                cur.execute(
+                                    "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                    [new_system_controller_status ,node_id, on_relay_child_id],
+                                )
+                                con.commit()  # commit above
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
+                    if system_controller_mode == 1 and (fan_relay_type == 'MySensor' or fan_relay_type == 'MQTT'):
                         cur.execute(
                             "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (on_relay_id, ),
+                            (fan_relay_id, ),
                         )
                         if cur.rowcount > 0:
                             node = cur.fetchone()
@@ -2585,52 +2600,52 @@ try:
                             node_id = node[node_to_index["node_id"]]
                             cur.execute(
                                 "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [new_system_controller_status ,node_id, on_relay_child_id],
+                                [new_system_controller_status ,node_id, fan_relay_child_id],
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
                                 print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
-                if system_controller_mode == 1 and (fan_relay_type == 'MySensor' or fan_relay_type == 'MQTT'):
-                    cur.execute(
-                        "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                        (fan_relay_id, ),
-                    )
-                    if cur.rowcount > 0:
-                        node = cur.fetchone()
-                        node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                        node_id = node[node_to_index["node_id"]]
-                        cur.execute(
-                            "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                            [new_system_controller_status ,node_id, fan_relay_child_id],
-                        )
-                        con.commit()  # commit above
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
 
-                #******************************************************
-                # System Controller Wired to Raspberry Pi GPIO Section.
-                #******************************************************
-                if active_sc_mode != 5: #process if NOT  HVAC fan only mode
-                    if system_controller_mode == 1 and off_relay_type == 'GPIO':
-                        cur.execute(
-                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (off_relay_id, ),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            node_id = node[node_to_index["node_id"]]
+                    #******************************************************
+                    # System Controller Wired to Raspberry Pi GPIO Section.
+                    #******************************************************
+                    if active_sc_mode != 5: #process if NOT  HVAC fan only mode
+                        if system_controller_mode == 1 and off_relay_type == 'GPIO':
                             cur.execute(
-                                "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [node_id, off_relay_child_id],
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (off_relay_id, ),
                             )
-                            con.commit()  # commit above
-                            if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(off_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(off_relay_off) + bc.ENDC + " (" + str(off_relay_on) + "=On, " + str(off_relay_off) + "=Off)")
-                    if on_relay_type == 'GPIO':
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                cur.execute(
+                                    "UPDATE messages_out SET sent = '0', payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                    [node_id, off_relay_child_id],
+                                )
+                                con.commit()  # commit above
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(off_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(off_relay_off) + bc.ENDC + " (" + str(off_relay_on) + "=On, " + str(off_relay_off) + "=Off)")
+                        if on_relay_type == 'GPIO':
+                            cur.execute(
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (on_relay_id, ),
+                            )
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                cur.execute(
+                                    "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                    [new_system_controller_status, node_id, on_relay_child_id],
+                                )
+                                con.commit()  # commit above
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(on_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(on_relay_on) + bc.ENDC + " (" + str(on_relay_on) + "=On, " + str(on_relay_off) + "=Off)")
+                    if system_controller_mode == 1 and fan_relay_type == 'GPIO':
                         cur.execute(
                             "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (on_relay_id, ),
+                            (fan_relay_id, ),
                         )
                         if cur.rowcount > 0:
                             node = cur.fetchone()
@@ -2638,259 +2653,39 @@ try:
                             node_id = node[node_to_index["node_id"]]
                             cur.execute(
                                 "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [new_system_controller_status, node_id, on_relay_child_id],
+                                [new_system_controller_status, node_id, fan_relay_child_id],
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(on_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(on_relay_on) + bc.ENDC + " (" + str(on_relay_on) + "=On, " + str(on_relay_off) + "=Off)")
-                if system_controller_mode == 1 and fan_relay_type == 'GPIO':
-                    cur.execute(
-                        "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                        (fan_relay_id, ),
-                    )
-                    if cur.rowcount > 0:
-                        node = cur.fetchone()
-                        node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                        node_id = node[node_to_index["node_id"]]
-                        cur.execute(
-                            "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                            [new_system_controller_status, node_id, fan_relay_child_id],
-                        )
-                        con.commit()  # commit above
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_on) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_on) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
 
 
-                #******************************************************************************************
-                # System Controller Wired over I2C Interface Make sure you have i2c Interface enabled
-                #******************************************************************************************
-                if active_sc_mode != 5: #process if NOT  HVAC fan only mode
-                    if system_controller_mode == 1 and off_relay_type == 'I2C':
-                        subprocess.call("/var/www/cron/i2c/i2c_relay.py " + off_relay_id + " " + off_relay_child_id + " " + command, shell=True)
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(off_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
-                    if on_relay_type == 'I2C':
-                        subprocess.call("/var/www/cron/i2c/i2c_relay.py " + on_relay_id + " " + on_relay_child_id + " " + command, shell=True)
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(on_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(on_relay_child_id) + bc.ENDC)
-                if system_controller_mode == 1 and fan_relay_type == 'I2C':
-                    subprocess.call("/var/www/cron/i2c/i2c_relay.py " + fan_relay_id + " " + fan_relay_child_id + " " + command, shell=True)
-                    if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
-            if system_controller_active_status != new_system_controller_status:
-                for key in zone_log_dict:
-                    #insert date and time into Log table so we can record system controller start date and time.
-                    if zone_log_dict[key] == 1:
-                        if expected_end_date_time is not None:
-                            qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, 
-                                      `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
-                        else:
-                            qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                      `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
-                        try:
-                            cur.execute(qry_str)
-                            con.commit()
+                    #******************************************************************************************
+                    # System Controller Wired over I2C Interface Make sure you have i2c Interface enabled
+                    #******************************************************************************************
+                    if active_sc_mode != 5: #process if NOT  HVAC fan only mode
+                        if system_controller_mode == 1 and off_relay_type == 'I2C':
+                            subprocess.call("/var/www/cron/i2c/i2c_relay.py " + off_relay_id + " " + off_relay_child_id + " " + command, shell=True)
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
-                        except:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(off_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
+                        if on_relay_type == 'I2C':
+                            subprocess.call("/var/www/cron/i2c/i2c_relay.py " + on_relay_id + " " + on_relay_child_id + " " + command, shell=True)
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
-                #end foreach($zone_log as $key => $value)
-                #insert date and time into system controller log table so we can record system controller start date and time.
-                if expected_end_date_time is not None:
-                    qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
-                              VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
-                else:
-                    qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
-                              VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
-                try:
-                    cur.execute(qry_str)
-                    con.commit()
-                    if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
-                except:
-                    if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
-            else:
-                for key in zone_log_dict:
-                    if zone_log_dict[key] != z_state_dict[key]:
-                        if zone_log_dict[key] == 0:
-                            qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
-                        else:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(on_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(on_relay_child_id) + bc.ENDC)
+                    if system_controller_mode == 1 and fan_relay_type == 'I2C':
+                        subprocess.call("/var/www/cron/i2c/i2c_relay.py " + fan_relay_id + " " + fan_relay_child_id + " " + command, shell=True)
+                        if dbgLevel >= 2:
+                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
+                if system_controller_active_status != new_system_controller_status:
+                    for key in zone_log_dict:
+                        #insert date and time into Log table so we can record system controller start date and time.
+                        if zone_log_dict[key] == 1:
                             if expected_end_date_time is not None:
-                                qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, 
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                             else:
                                 qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
-                        try:
-                            cur.execute(qry_str)
-                            con.commit()
-                            if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
-                        except:
-                            if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
-
-        #end system_controller ON section
-
-        #************************************
-        #  System Controller Off section
-        #************************************
-        else:
-            new_system_controller_status = 0
-            #change relay states on change
-            if system_controller_active_status != new_system_controller_status or active_sc_mode != sc_mode_prev or zone_current_mode != zone_mode or zone_current_mode != zone_mode or heat_relay_type == 'MySensor' or cool_relay_type == 'MySensor' or fan_relay_type == 'MySensor':
-                #update system controller active status to 1
-                cur.execute(
-                    "UPDATE system_controller SET sync = 0, active_status = %s, sc_mode_prev = %s WHERE id = 1 LIMIT 1;",
-                    [new_system_controller_status, active_sc_mode],
-                )
-                con.commit()  # commit above
-
-                #************************************************************************************************************
-                # System Controller Wirelss Section:      MySensors Wireless or MQTT Relay module for your System Controller
-                #************************************************************************************************************
-                #update messages_out table with sent status to 0 and payload to as system controller status.
-                if heat_relay_type == 'MySensor' or heat_relay_type == 'MQTT':
-                    cur.execute(
-                        "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                        (heat_relay_id, ),
-                    )
-                    if cur.rowcount > 0:
-                        node = cur.fetchone()
-                        node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                        node_id = node[node_to_index["node_id"]]
-                        cur.execute(
-                            "UPDATE messages_out SET sent = 0, payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                            [new_system_controller_status, node_id, heat_relay_child_id],
-                        )
-                        con.commit()  # commit above
-                        if dbgLevel >= 2:
-                             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
-                if system_controller_mode == 1:
-                    #update messages_out table with sent status to 0 and payload to as system controller status.
-                    if cool_relay_type == 'MySensor' or cool_relay_type == 'MQTT': # HVAC cool relay OFF
-                        cur.execute(
-                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (cool_relay_id, ),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            node_id = node[node_to_index["node_id"]]
-                            cur.execute(
-                                "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [node_id, cool_relay_child_id],
-                            )
-                            con.commit()  # commit above
-                    if fan_relay_type == 'MySensor' or fan_relay_type == 'MQTT': # HVAC cool relay OFF
-                        cur.execute(
-                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (fan_relay_id, ),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            node_id = node[node_to_index["node_id"]]
-                            if active_sc_mode == 5: # HVAC fan ON if set to fan mode, else turn OFF
-                                cur.execute(
-                                    "UPDATE messages_out SET sent = 0, payload = '1' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                    [node_id, cool_relay_child_id],
-                                 )
-                            else:
-                                cur.execute(
-                                    "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                    [new_system_controller_status, node_id, cool_relay_child_id],
-                                )
-                            con.commit()  # commit above
-                            if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
-
-                #******************************************************
-                # System Controller Wired to Raspberry Pi GPIO Section.
-                #******************************************************
-                if heat_relay_type == 'GPIO':
-                    cur.execute(
-                        "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                        (heat_relay_id, ),
-                    )
-                    if cur.rowcount > 0:
-                        node = cur.fetchone()
-                        node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                        node_id = node[node_to_index["node_id"]]
-                        cur.execute(
-                            "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                            [new_system_controller_status, node_id, heat_relay_child_id],
-                        )
-                        con.commit()  # commit above
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(heat_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(heat_relay_off) + bc.ENDC + " (" + str(heat_relay_on) + "=On, " + str(heat_relay_off) + "=Off)")
-                if system_controller_mode == 1:
-                    if cool_relay_type == 'GPIO':
-                        cur.execute(
-                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (cool_relay_id, ),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            node_id = node[node_to_index["node_id"]]
-                            cur.execute(
-                                "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                [node_id, cool_relay_child_id],
-                            )
-                            con.commit()  # commit above
-                            if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(cool_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(cool_relay_off) + bc.ENDC + " (" + str(cool_relay_on) + "=On, " + str(cool_relay_off) + "=Off)")
-                    if fan_relay_type == 'GPIO':
-                        cur.execute(
-                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (fan_relay_id, ),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            node_id = node[node_to_index["node_id"]]
-                            if active_sc_mode == 5: #HVAC fan ON if set to fan mode, else turn OFF
-                                cur.execute(
-                                    "UPDATE messages_out SET sent = 0, payload = '1' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                    [node_id, cool_relay_child_id],
-                                )
-                            else:
-                                cur.execute(
-                                    "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                    [new_system_controller_status, node_id, heat_relay_child_id],
-                            )
-                            con.commit()  # commit above
-                            if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_off) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
-
-                #******************************************************************************************
-                # System Controller Wired over I2C Interface Make sure you have i2c Interface enabled
-                #******************************************************************************************
-                if heat_relay_type == 'I2C':
-                    subprocess.call("/var/www/cron/i2c/i2c_relay.py " + heat_relay_id + " " + heat_relay_child_id + " " + command, shell=True)
-                    if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(heat_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
-                if system_controller_mode == 1:
-                    if cool_relay_type == 'I2C': # HVAC cool relay OFF
-                        subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(cool_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(cool_relay_child_id) + bc.ENDC)
-                    if fan_relay_type == 'I2C':
-                        if active_sc_mode == 5: # HVAC fan ON if set to fan mode, else turn OFF
-                            subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
-                        else:
-                            subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
-
-                #Update last record with system controller stop date and time in System Controller Log table.
-                if system_controller_active_status != new_system_controller_status:
-                    for key in zone_log_dict:
-                        if zone_log_dict[key] != z_state_dict[key]:
-                            qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
@@ -2899,95 +2694,305 @@ try:
                             except:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
-                    qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, system_controller_id)
+                    #end foreach($zone_log as $key => $value)
+                    #insert date and time into system controller log table so we can record system controller start date and time.
+                    if expected_end_date_time is not None:
+                        qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
+                                  VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                    else:
+                        qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
+                                  VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
                     try:
                         cur.execute(qry_str)
                         con.commit()
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table updated Successfully.")
+                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
                     except:
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table update failed.")
-
-
-        #if HVAC mode get the heat, cool and fan relay on/off state
-        if system_controller_mode == 1:
-            if new_system_controller_status == 1:
-                if active_sc_mode != 5:
-                    cur.execute(
-                        "SELECT name FROM relays WHERE relay_id = %s AND relay_child_id = %s LIMIT 1",
-                        (on_relay_id, on_relay_child_id),
-                    )
-                    if cur.rowcount > 0:
-                        relay = cur.fetchone()
-                        relay_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                        h_relay = relay[relay_to_index["name"]]
-                        if 'Heat' in h_relay:
-                            hvac_relays_state = 0b101
-                        else:
-                            hvac_relays_state = 0b011
+                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
                 else:
-                    hvac_relays_state = 0b001
+                    for key in zone_log_dict:
+                        if zone_log_dict[key] != z_state_dict[key]:
+                            if zone_log_dict[key] == 0:
+                                qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
+                            else:
+                                if expected_end_date_time is not None:
+                                    qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                              `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                                else:
+                                    qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
+                                              `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
+                            try:
+                                cur.execute(qry_str)
+                                con.commit()
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
+                            except:
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
+
+            #end system_controller ON section
+
+            #************************************
+            #  System Controller Off section
+            #************************************
             else:
-                if active_sc_mode == 5:
-                    hvac_relays_state = 0b001
-                else:
-                    hvac_relays_state = 0b000
-            try:
-                cur.execute(
-                    "UPDATE system_controller SET hvac_relays_state = %s;",
-                    [hvac_relays_state,],
+                new_system_controller_status = 0
+                #change relay states on change
+                if system_controller_active_status != new_system_controller_status or active_sc_mode != sc_mode_prev or zone_current_mode != zone_mode or zone_current_mode != zone_mode or heat_relay_type == 'MySensor' or cool_relay_type == 'MySensor' or fan_relay_type == 'MySensor':
+                    #update system controller active status to 1
+                    cur.execute(
+                        "UPDATE system_controller SET sync = 0, active_status = %s, sc_mode_prev = %s WHERE id = 1 LIMIT 1;",
+                        [new_system_controller_status, active_sc_mode],
                     )
-                con.commit()  # commit above
-                if dbgLevel >= 2:
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State updated Successfully.")
-            except:
-                if dbgLevel >= 2:
-                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State update failed..")
-            if dbgLevel == 1:
-                if dbgLevel >= 2:
-                    print("hvac_state - " + str(hvac_state))
-                    print("hvac_relays_state - "+ str(hvac_relays_state))
-                    if hvac_relays_state != 0:
-                        print("On Relay Name - " + str(h_relay['name']))
+                    con.commit()  # commit above
 
-        #********************************************************************************************************************************************************************
-        #Following section is Optional for States collection
+                    #************************************************************************************************************
+                    # System Controller Wirelss Section:      MySensors Wireless or MQTT Relay module for your System Controller
+                    #************************************************************************************************************
+                    #update messages_out table with sent status to 0 and payload to as system controller status.
+                    if heat_relay_type == 'MySensor' or heat_relay_type == 'MQTT':
+                        cur.execute(
+                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                            (heat_relay_id, ),
+                        )
+                        if cur.rowcount > 0:
+                            node = cur.fetchone()
+                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                            node_id = node[node_to_index["node_id"]]
+                            cur.execute(
+                                "UPDATE messages_out SET sent = 0, payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                [new_system_controller_status, node_id, heat_relay_child_id],
+                            )
+                            con.commit()  # commit above
+                            if dbgLevel >= 2:
+                                 print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
+                    if system_controller_mode == 1:
+                        #update messages_out table with sent status to 0 and payload to as system controller status.
+                        if cool_relay_type == 'MySensor' or cool_relay_type == 'MQTT': # HVAC cool relay OFF
+                            cur.execute(
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (cool_relay_id, ),
+                            )
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                cur.execute(
+                                    "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                    [node_id, cool_relay_child_id],
+                                )
+                                con.commit()  # commit above
+                        if fan_relay_type == 'MySensor' or fan_relay_type == 'MQTT': # HVAC cool relay OFF
+                            cur.execute(
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (fan_relay_id, ),
+                            )
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                if active_sc_mode == 5: # HVAC fan ON if set to fan mode, else turn OFF
+                                    cur.execute(
+                                        "UPDATE messages_out SET sent = 0, payload = '1' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                        [node_id, cool_relay_child_id],
+                                     )
+                                else:
+                                    cur.execute(
+                                        "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                        [new_system_controller_status, node_id, cool_relay_child_id],
+                                    )
+                                con.commit()  # commit above
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
 
-        if dbgLevel >= 2:
-            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Active Status: " + bc.red + str(new_system_controller_status) + bc.ENDC)
-        if system_controller_mode == 0:
+                    #******************************************************
+                    # System Controller Wired to Raspberry Pi GPIO Section.
+                    #******************************************************
+                    if heat_relay_type == 'GPIO':
+                        cur.execute(
+                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                            (heat_relay_id, ),
+                        )
+                        if cur.rowcount > 0:
+                            node = cur.fetchone()
+                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                            node_id = node[node_to_index["node_id"]]
+                            cur.execute(
+                                "UPDATE messages_out SET sent = 0, payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                [new_system_controller_status, node_id, heat_relay_child_id],
+                            )
+                            con.commit()  # commit above
+                            if dbgLevel >= 2:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(heat_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(heat_relay_off) + bc.ENDC + " (" + str(heat_relay_on) + "=On, " + str(heat_relay_off) + "=Off)")
+                    if system_controller_mode == 1:
+                        if cool_relay_type == 'GPIO':
+                            cur.execute(
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (cool_relay_id, ),
+                            )
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                cur.execute(
+                                    "UPDATE messages_out SET sent = 0, payload = '0' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                    [node_id, cool_relay_child_id],
+                                )
+                                con.commit()  # commit above
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(cool_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(cool_relay_off) + bc.ENDC + " (" + str(cool_relay_on) + "=On, " + str(cool_relay_off) + "=Off)")
+                        if fan_relay_type == 'GPIO':
+                            cur.execute(
+                                "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
+                                (fan_relay_id, ),
+                            )
+                            if cur.rowcount > 0:
+                                node = cur.fetchone()
+                                node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                node_id = node[node_to_index["node_id"]]
+                                if active_sc_mode == 5: #HVAC fan ON if set to fan mode, else turn OFF
+                                    cur.execute(
+                                        "UPDATE messages_out SET sent = 0, payload = '1' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                        [node_id, cool_relay_child_id],
+                                    )
+                                else:
+                                    cur.execute(
+                                        "UPDATE messages_out SET sent = '0', payload = '%s' WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                        [new_system_controller_status, node_id, heat_relay_child_id],
+                                )
+                                con.commit()  # commit above
+                                if dbgLevel >= 2:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_off) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
+
+                    #******************************************************************************************
+                    # System Controller Wired over I2C Interface Make sure you have i2c Interface enabled
+                    #******************************************************************************************
+                    if heat_relay_type == 'I2C':
+                        subprocess.call("/var/www/cron/i2c/i2c_relay.py " + heat_relay_id + " " + heat_relay_child_id + " " + command, shell=True)
+                        if dbgLevel >= 2:
+                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(heat_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
+                    if system_controller_mode == 1:
+                        if cool_relay_type == 'I2C': # HVAC cool relay OFF
+                            subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
+                            if dbgLevel >= 2:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(cool_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(cool_relay_child_id) + bc.ENDC)
+                        if fan_relay_type == 'I2C':
+                            if active_sc_mode == 5: # HVAC fan ON if set to fan mode, else turn OFF
+                                subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
+                            else:
+                                subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
+                            if dbgLevel >= 2:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
+
+                    #Update last record with system controller stop date and time in System Controller Log table.
+                    if system_controller_active_status != new_system_controller_status:
+                        for key in zone_log_dict:
+                            if zone_log_dict[key] != z_state_dict[key]:
+                                qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
+                                try:
+                                    cur.execute(qry_str)
+                                    con.commit()
+                                    if dbgLevel >= 2:
+                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
+                                except:
+                                    if dbgLevel >= 2:
+                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
+                        qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, system_controller_id)
+                        try:
+                            cur.execute(qry_str)
+                            con.commit()
+                            if dbgLevel >= 2:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table updated Successfully.")
+                        except:
+                            if dbgLevel >= 2:
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table update failed.")
+
+
+            #if HVAC mode get the heat, cool and fan relay on/off state
+            if system_controller_mode == 1:
+                if new_system_controller_status == 1:
+                    if active_sc_mode != 5:
+                        cur.execute(
+                            "SELECT name FROM relays WHERE relay_id = %s AND relay_child_id = %s LIMIT 1",
+                            (on_relay_id, on_relay_child_id),
+                        )
+                        if cur.rowcount > 0:
+                            relay = cur.fetchone()
+                            relay_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                            h_relay = relay[relay_to_index["name"]]
+                            if 'Heat' in h_relay:
+                                hvac_relays_state = 0b101
+                            else:
+                                hvac_relays_state = 0b011
+                    else:
+                        hvac_relays_state = 0b001
+                else:
+                    if active_sc_mode == 5:
+                        hvac_relays_state = 0b001
+                    else:
+                        hvac_relays_state = 0b000
+                try:
+                    cur.execute(
+                        "UPDATE system_controller SET hvac_relays_state = %s;",
+                        [hvac_relays_state,],
+                        )
+                    con.commit()  # commit above
+                    if dbgLevel >= 2:
+                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State updated Successfully.")
+                except:
+                    if dbgLevel >= 2:
+                         print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State update failed..")
+                if dbgLevel == 1:
+                    if dbgLevel >= 2:
+                        print("hvac_state - " + str(hvac_state))
+                        print("hvac_relays_state - "+ str(hvac_relays_state))
+                        if hvac_relays_state != 0:
+                            print("On Relay Name - " + str(h_relay['name']))
+
+            #********************************************************************************************************************************************************************
+            #Following section is Optional for States collection
+
             if dbgLevel >= 2:
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Hysteresis Status: " + bc.red + str(hysteresis) + bc.ENDC)
-        if dbgLevel >= 2:
-            print("-" * line_len)
-            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Purging Marked Records.")
-        #delete records where purge is set to 1
-        qry_tuple = ('DELETE FROM boost WHERE `purge`= 1 LIMIT 1;',
-                    'DELETE FROM override WHERE `purge`= 1  LIMIT 1;',
-                    'DELETE FROM schedule_daily_time_zone WHERE `purge`= 1;',
-                    'DELETE FROM schedule_night_climat_zone WHERE `purge`= 1;',
-                    'DELETE FROM controller_zone_logs WHERE `purge`= 1;',
-                    'DELETE FROM zone_sensors WHERE `purge`= 1;',
-                    'DELETE FROM zone_relays WHERE `purge`= 1;',
-                    'DELETE FROM livetemp WHERE `purge`= 1 LIMIT 1;',
-                    'DELETE FROM zone WHERE `purge`= 1 LIMIT 1;',
-                    'DELETE FROM schedule_daily_time_zone WHERE `purge`= 1;',
-                    'DELETE FROM holidays WHERE `purge`= 1;',
-                    'DELETE FROM schedule_daily_time WHERE `purge`= 1;')
-        for q in qry_tuple:
-            try:
-                cur.execute(q)
-                con.commit()
-                if dbgLevel == 1:
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + "' Successful.")
-            except:
-                if dbgLevel == 1:
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + " 'Failed.")
+                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Active Status: " + bc.red + str(new_system_controller_status) + bc.ENDC)
+            if system_controller_mode == 0:
+                if dbgLevel >= 2:
+                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Hysteresis Status: " + bc.red + str(hysteresis) + bc.ENDC)
+            if dbgLevel >= 2:
+                print("-" * line_len)
+                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Purging Marked Records.")
+            #delete records where purge is set to 1
+            qry_tuple = ('DELETE FROM boost WHERE `purge`= 1 LIMIT 1;',
+                        'DELETE FROM override WHERE `purge`= 1  LIMIT 1;',
+                        'DELETE FROM schedule_daily_time_zone WHERE `purge`= 1;',
+                        'DELETE FROM schedule_night_climat_zone WHERE `purge`= 1;',
+                        'DELETE FROM controller_zone_logs WHERE `purge`= 1;',
+                        'DELETE FROM zone_sensors WHERE `purge`= 1;',
+                        'DELETE FROM zone_relays WHERE `purge`= 1;',
+                        'DELETE FROM livetemp WHERE `purge`= 1 LIMIT 1;',
+                        'DELETE FROM zone WHERE `purge`= 1 LIMIT 1;',
+                        'DELETE FROM schedule_daily_time_zone WHERE `purge`= 1;',
+                        'DELETE FROM holidays WHERE `purge`= 1;',
+                        'DELETE FROM schedule_daily_time WHERE `purge`= 1;')
+            for q in qry_tuple:
+                try:
+                    cur.execute(q)
+                    con.commit()
+                    if dbgLevel == 1:
+                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + "' Successful.")
+                except:
+                    if dbgLevel == 1:
+                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + " 'Failed.")
 
+            if dbgLevel >= 1:
+                print("-" * line_len)
 
-        if dbgLevel >= 1:
-            print("-" * line_len)
+        #no zones to process
+        else:
+            if dbgLevel >= 1:
+                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Zones to Process.")
+                print("-" * line_len)
+
         print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Controller Scan Ended")
         print(bc.grn + "*" * line_len + bc.ENDC)
         time.sleep(1)
