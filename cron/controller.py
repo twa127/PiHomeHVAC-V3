@@ -1183,7 +1183,7 @@ try:
                         node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
     #                    sensor_seen_time = node[node_to_index['last_seen']] #not using this cause it updates on battery update
                         sensor_notice = node[node_to_index['notice_interval']]
-                        if sensor_notice > 0 and temp_reading_time != "":
+                        if sensor_notice > 0 and temp_reading_time is not None:
                             sensor_seen_time = temp_reading_time #using time from messages_in
                             if sensor_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- sensor_notice):
                                 zone_fault = 1
