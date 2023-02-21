@@ -218,12 +218,12 @@ def get_schedule_status(
                         else:
                              start_time = sunset_time
                         start_time = start_time + (start_offset * 60)
-                        if end_sr == 1 or end_ss == 1:
-                            if end_sr == 1:
-                                end_time = sunrise_time
-                            else:
-                                end_time = sunset_time
-                            end_time = end_time + (end_offset * 60);
+                    if end_sr == 1 or end_ss == 1:
+                        if end_sr == 1:
+                            end_time = sunrise_time
+                        else:
+                            end_time = sunset_time
+                        end_time = end_time + (end_offset * 60);
             cur.execute(
                 "SELECT * FROM schedule_time_temp_offset WHERE schedule_daily_time_id = %s AND status = 1 LIMIT 1;",
                 (time_id,),
