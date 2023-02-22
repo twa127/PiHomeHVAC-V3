@@ -274,7 +274,7 @@ def get_schedule_status(
                         start_time_temp_offset = 0;
                     start_time = start_time - (start_time_temp_offset * 60)
 
-            if (end_time > start_time and time_now > start_time and time_now < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and time_now < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and time_now > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == "1":
+            if (end_time > start_time and time_now > start_time and time_now < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and time_now < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and time_now > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == 1:
                 sch_status = 1
                 away_sch = 1
                 break #exit the loop if an active schedule found
