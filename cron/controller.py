@@ -107,7 +107,7 @@ def process_pump_relays(
                 relay_status = relay_on
             else:
                 relay_status = relay_off
-            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Pump: GIOP Relay Status:  " + bc.red + relay_status + bc.ENDC + " ("  + relay_on + "=On, " + relay_off + "=off)")
+            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Pump: GIOP Relay Status:  " + bc.red + relay_status + bc.ENDC + " ("  + relay_on + "=On, " + relay_off + "=off)")
             cur.execute(
                 "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
                 [str(command), relay_node_id, relay_child_id],
@@ -119,7 +119,7 @@ def process_pump_relays(
         #*************************************************************************************
         if 'I2C' in relay_node_type:
             subprocess.call("/var/www/cron/i2c/i2c_relay.py " + relay_node_id + " " + relay_child_id + " " + str(command), shell=True)
-            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Pump: Relay Board: " + relay_node_id + " Relay No: "  + relay_child_id + " Status: " + str(command))
+            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Pump: Relay Board: " + relay_node_id + " Relay No: "  + relay_child_id + " Status: " + str(command))
 
         #************************************************************************************
         # Pump Wireless Section: MySensors Wireless or MQTT Relay module for your Pump control.
@@ -157,7 +157,7 @@ def get_schedule_status(
     away_status,
 ):
 
-    end_time = int(time.time())
+    end_time = int_time_stamp
 
     #get raw data
     qry_str = """SELECT schedule_daily_time.id AS time_id, schedule_daily_time.start, schedule_daily_time.start_sr, schedule_daily_time.start_ss, schedule_daily_time.start_offset,
@@ -185,7 +185,7 @@ def get_schedule_status(
         sch_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
         for s in sch:
             #check each schedule for this zone
-            time_now = int(time.time())
+            time_now = int_time_stamp
             time_id = s[sch_to_index["time_id"]]
             start_time = today_date + ", " + str(s[sch_to_index["start"]])
             start_time = time.mktime(datetime.datetime.strptime(start_time, "%d/%m/%Y, %H:%M:%S").timetuple())
@@ -303,10 +303,10 @@ def get_schedule_status(
 try:
     while 1:
         NULL = "NULL"
-        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Controller Scan Started")
         #following variables set for date time functions.
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        dow = int(datetime.datetime.now().date().strftime('%w'))
+        time_stamp = datetime.datetime.now()
+        int_time_stamp = int(time_stamp.timestamp())
+        dow = int(time_stamp.date().strftime('%w'))
         prev_dow = int((datetime.date.today() + datetime.timedelta(days =- 1)).strftime("%w"))
         today_date = datetime.date.today().strftime("%d/%m/%Y")
         tomorrow_date = (datetime.date.today() + datetime.timedelta(days = 1)).strftime("%d/%m/%Y")
@@ -346,6 +346,8 @@ try:
         dbuser = config.get("db", "dbusername")
         dbpass = config.get("db", "dbpassword")
         dbname = config.get("db", "dbname")
+
+        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Controller Scan Started")
 
         con = mdb.connect(dbhost, dbuser, dbpass, dbname)
         cur = con.cursor()
@@ -411,7 +413,7 @@ try:
         sc_weather_sensor_id  = row[system_controller_to_index["weather_sensor_id"]]
         #calulate system controller on time in seconds
         if system_controller_active_status == 1:
-            system_controller_on_time = int(datetime.datetime.now().timestamp()) - int(row[system_controller_to_index["datetime"]].timestamp())
+            system_controller_on_time = int_time_stamp - int(row[system_controller_to_index["datetime"]].timestamp())
         else:
             system_controller_on_time = 0
         if dbgLevel == 1:
@@ -531,7 +533,7 @@ try:
             elif sc_mode == 4:
                     current_sc_mode = "BOTH"
             if dbgLevel >= 2:
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Operating in Boiler Mode")
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Operating in Boiler Mode")
         else:
             if sc_mode == 0:
                     current_sc_mode = "OFF"
@@ -558,10 +560,10 @@ try:
                     current_sc_mode = "COOL"
                     timer_mode = ""
             if dbgLevel >= 2:
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Operating in HVAC Mode - " + str(current_sc_mode) + str(timer_mode))
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Operating in HVAC Mode - " + str(current_sc_mode) + str(timer_mode))
 
         if dbgLevel >= 2:
-            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Day of the Week: " + bc.red + str(dow) + bc.ENDC)
+            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Day of the Week: " + bc.red + str(dow) + bc.ENDC)
         print("-" * line_len)
 
         #query to check away status
@@ -573,7 +575,7 @@ try:
         #query to check holidays status
         cur.execute(
             "SELECT * FROM `holidays` WHERE %s between start_date_time AND end_date_time AND status = '1' LIMIT 1",
-            (timestamp,),
+            (time_stamp.strftime("%Y-%m-%d %H:%M:%S"),),
         )
         if cur.rowcount > 0:
             row = cur.fetchone()
@@ -815,12 +817,11 @@ try:
                             controler_seen_time = node[node_to_index["last_seen"]]
                             controler_notice = node[node_to_index["notice_interval"]]
                             if controler_notice > 0:
-                                timestamp = datetime.datetime.now()
-                                if controler_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- controler_notice):
+                                if controler_seen_time <  time_stamp + datetime.timedelta(minutes =- controler_notice):
                                     zone_fault = 1
                                     zone_ctr_fault = 1
                                     if dbgLevel >= 2:
-                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone valve communication timeout for This Zone. Node Last Seen: " + str(controler_seen_time))
+                                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone valve communication timeout for This Zone. Node Last Seen: " + str(controler_seen_time))
 
                         #if add-on controller then process state change from GUI or api call
                         if zone_category == 2:
@@ -847,7 +848,7 @@ try:
                             #for zones with multiple controllers - only capture the first change
                             if 'Tasmota' in controler_type and manual_button_override == 0:
                                 if base_addr == '000.000.000.000':
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Gateway Address is Set")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Gateway Address is Set")
                                 else:
                                     cur.execute(
                                         "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = 1 LIMIT 1;",
@@ -871,7 +872,7 @@ try:
                                                 if manual_button_override == 0 and current_state != new_add_on_state:
                                                     manual_button_override = 1
                                         except:
-                                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
+                                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
 
                     #if there has been an external update to any of the relays associated with this zone (both Tasmota and MySensor), then update MaxAir to capture the new state
                     #will update the following tables - messages_out, zone, zone_relays, zone_current state and override
@@ -917,10 +918,9 @@ try:
                                         else:
                                             set="1"
                                             payload = "1"
-                                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                                     cur.execute(
                                         "UPDATE messages_out SET payload = %s, datetime = %s, sent = '0' WHERE id = %s;",
-                                        [payload, timestamp, id],
+                                        [payload, time_stamp.strftime("%Y-%m-%d %H:%M:%S"), id],
                                     )
                                     con.commit()  # commit above
                             cur.execute(
@@ -988,11 +988,11 @@ try:
 
                 #check boost time is passed, if it passed then update db and set to boost status to 0
                 if boost_status == 1:
-                    if datetime.datetime.now() < boost_time + datetime.timedelta(minutes = boost_minute):
+                    if time_stamp < boost_time + datetime.timedelta(minutes = boost_minute):
                         boost_active = 1
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Boost is Active for This Zone")
-                    elif datetime.datetime.now() >= boost_time + datetime.timedelta(minutes = boost_minute) and  boost_status == 1:
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Boost is Active for This Zone")
+                    elif time_stamp >= boost_time + datetime.timedelta(minutes = boost_minute) and  boost_status == 1:
                         boost_active = 0
                         #You can comment out if you dont have Boost Button Console installed.
                         cur.execute(
@@ -1076,12 +1076,11 @@ try:
 
 
                         #night climate time to add 10 minuts for record purpose
-                        nc_end_time_rc = datetime.datetime.now()+ datetime.timedelta(minutes = 10)
+                        nc_end_time_rc = time_stamp+ datetime.timedelta(minutes = 10)
                         nc_end_time_rc_str = nc_end_time_rc.strftime('%Y-%m-%d %H:%M:%S')
-                        timestamp = datetime.datetime.now().time()
-                        if away_sch == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), timestamp) and nc_time_status =='1' and nc_zone_status =='1' and nc_weekday > 0:
+                        if away_sch == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), time_stamp.time()) and nc_time_status =='1' and nc_zone_status =='1' and nc_weekday > 0:
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Night Climate Enabled for This Zone")
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Night Climate Enabled for This Zone")
                             night_climate_status = 1
                         else:
                             night_climate_status = 0
@@ -1164,10 +1163,10 @@ try:
                     #only ptocess hysteresis for EU systems when stop time is set
                     if system_controller_mode == 0 and system_controller_stop_datetime is not None:
                         hysteresis_time = system_controller_stop_datetime + datetime.timedelta(minutes = system_controller_hysteresis_time)
-                        if hysteresis_time > datetime.datetime.now():
+                        if hysteresis_time > time_stamp:
                             hysteresis = 1
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Hysteresis time: " + hysteresis_time.strftime('%Y-%m-%d %H:%M:%S'))
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Hysteresis time: " + hysteresis_time.strftime('%Y-%m-%d %H:%M:%S'))
                         else:
                             hysteresis = 0
                     else:
@@ -1185,19 +1184,19 @@ try:
                         sensor_notice = node[node_to_index['notice_interval']]
                         if sensor_notice > 0 and temp_reading_time is not None:
                             sensor_seen_time = temp_reading_time #using time from messages_in
-                            if sensor_seen_time <  datetime.datetime.now() + datetime.timedelta(minutes =- sensor_notice):
+                            if sensor_seen_time <  time_stamp + datetime.timedelta(minutes =- sensor_notice):
                                 zone_fault = 1
                                 zone_sensor_fault = 1
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Temperature sensor communication timeout for This Zone. Last temperature reading: " + str(temp_reading_time))
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Temperature sensor communication timeout for This Zone. Last temperature reading: " + str(temp_reading_time))
 
                     #Check system controller notice interval and notice logic
                     if heat_relay_notice > 0:
                         heat_relay_seen_time = heat_relay_seen
-                        if heat_relay_seen_time  < datetime.datetime.now() + datetime.timedelta(minutes =- heat_relay_notice):
+                        if heat_relay_seen_time  < time_stamp + datetime.timedelta(minutes =- heat_relay_notice):
                             zone_fault = 1
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller controler communication timeout. System Controller Last Seen: " + str(heat_relay_seen))
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller controler communication timeout. System Controller Last Seen: " + str(heat_relay_seen))
 
                     #create array zone states, used to determine if new zone log table entry is required
                     z_state_dict[zone_id] = zone_state
@@ -2146,28 +2145,28 @@ try:
                 con.commit()  # commit above
 
                 if dbgLevel >= 2:
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Name     " + bc.red + str(zone_name) + bc.ENDC)
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Type     " + bc.red + str(zone_type) + bc.ENDC)
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: ID       " + bc.red + str(zone_id) + bc.ENDC)
+                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Name     " + bc.red + str(zone_name) + bc.ENDC)
+                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Type     " + bc.red + str(zone_type) + bc.ENDC)
+                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: ID       " + bc.red + str(zone_id) + bc.ENDC)
 
                 if zone_category == 1:
                     if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Mode     " + bc.red + str(zone_mode) + bc.ENDC)
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Sensor Reading     " + bc.red + str(int(zone_c)) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Mode     " + bc.red + str(zone_mode) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Sensor Reading     " + bc.red + str(int(zone_c)) + bc.ENDC)
                 elif zone_category == 2:
                     if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Mode     " + bc.red + str(zone_mode) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Mode     " + bc.red + str(zone_mode) + bc.ENDC)
                 else:
                     if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Mode     " + bc.red + str(zone_mode) + bc.ENDC)
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Sensor Reading     " + bc.red + str(zone_c) + bc.ENDC)
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Weather Factor     " + bc.red + str(weather_fact) + bc.ENDC)
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: DeadBand           " + bc.red + str(zone_sp_deadband) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Mode     " + bc.red + str(zone_mode) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Sensor Reading     " + bc.red + str(zone_c) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Weather Factor     " + bc.red + str(weather_fact) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: DeadBand           " + bc.red + str(zone_sp_deadband) + bc.ENDC)
                         if zone_category == 5:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut In Temperature        " + bc.red + str(temp_cut_out_rising) + bc.ENDC)
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut In Temperature        " + bc.red + str(temp_cut_out_rising) + bc.ENDC)
                         else:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut In Temperature        " + bc.red + str(temp_cut_out_falling) + bc.ENDC)
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut Out Temperature       " + bc.red + str(temp_cut_out) + bc.ENDC)
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut In Temperature        " + bc.red + str(temp_cut_out_falling) + bc.ENDC)
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut Out Temperature       " + bc.red + str(temp_cut_out) + bc.ENDC)
 
                 for key in controllers_dict:
                     if key == zone_id:
@@ -2178,34 +2177,34 @@ try:
                         else:
                             zp = "Zone"
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Controller: " + bc.red + str(zone_controler_id) + bc.ENDC + " Controller Child: " + bc.red + str(zone_controler_child_id) + bc.ENDC + " Status: " + bc.red + str(zone_status) + bc.ENDC)
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Controller: " + bc.red + str(zone_controler_id) + bc.ENDC + " Controller Child: " + bc.red + str(zone_controler_child_id) + bc.ENDC + " Status: " + bc.red + str(zone_status) + bc.ENDC)
 
                 if zone_category == 0 or zone_category == 3 or zone_category == 4:
                     if zone_status == 1:
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Start Cause: " + str(start_cause) + " Target C: " + bc.red + str(target_c) + bc.ENDC + " Zone C: " + bc.red_txt + str(zone_c) + bc.ENDC)
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Start Cause: " + str(start_cause) + " Target C: " + bc.red + str(target_c) + bc.ENDC + " Zone C: " + bc.red_txt + str(zone_c) + bc.ENDC)
                             if floor(zone_mode/10)*10 == 80:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.red + str(sch_name) + bc.ENDC)
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.red + str(sch_name) + bc.ENDC)
                     if zone_status == 0:
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Stop Cause: " + str(stop_cause) + " Target C: " + bc.red + str(target_c) + bc.ENDC + " Zone C: " + bc.red_txt + str(zone_c) + bc.ENDC)
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Stop Cause: " + str(stop_cause) + " Target C: " + bc.red + str(target_c) + bc.ENDC + " Zone C: " + bc.red_txt + str(zone_c) + bc.ENDC)
                             if zone_mode == 30 or floor(zone_mode/10)*10 == 80:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.blu + str(sch_name) + bc.ENDC)
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.blu + str(sch_name) + bc.ENDC)
                 else:
                     if zone_status == 1:
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Start Cause: " + str(add_on_start_cause))
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Start Cause: " + str(add_on_start_cause))
                         if sch_status == 1:
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.red + str(sch_name) + bc.ENDC)
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.red + str(sch_name) + bc.ENDC)
                     if zone_status == 0:
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Stop Cause: " + str(add_on_stop_cause))
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Stop Cause: " + str(add_on_stop_cause))
                         if zone_mode == 30 or floor(zone_mode/10)*10 == 80:
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.blu + str(sch_name) + bc.ENDC)
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Running Schedule " + bc.blu + str(sch_name) + bc.ENDC)
 
                 #Pass data to zone commands loop
                 zone_commands_dict[command_index] = {}
@@ -2236,65 +2235,65 @@ try:
                             try:
                                 cur.execute(
                                     "UPDATE add_on_logs SET stop_datetime = %s, stop_cause = %s WHERE `zone_id` = %s ORDER BY id DESC LIMIT 1;",
-                                    [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), add_on_stop_cause, zone_id],
+                                    [time_stamp.strftime("%Y-%m-%d %H:%M:%S"), add_on_stop_cause, zone_id],
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
                             if zone_mode == 111 or zone_mode == 114 or zone_mode == 21 or  zone_mode == 10:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table updated Successfully.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
                         elif zone_status_prev == '0' and  (zone_status == 1 or zone_state  == 1):
                             if zone_mode == 111 or zone_mode == 114 or zone_mode == 21 or  zone_mode == 10 or  zone_mode == 141:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
                         #zone switching OFF
                         elif zone_status_prev == '1' and  zone_status == 0:
                             try:
                                 cur.execute(
                                     "UPDATE add_on_logs SET stop_datetime = %s, stop_cause = %s WHERE `zone_id` = %s ORDER BY id DESC LIMIT 1;",
-                                    [datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), add_on_stop_cause, zone_id],
+                                    [time_stamp.strftime("%Y-%m-%d %H:%M:%S"), add_on_stop_cause, zone_id],
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
                     #end process Zone Cat 1 and 2 logs
                 if dbgLevel >= 2:
                     print("-" * line_len)
                 #process Zone Cat 1 and 2 logs
             else: #end if($zone_status == 1)
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Name     " + zone_name)
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Type     " + zone_type)
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: ID       " + str(zone_id))
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Error          " + bc.red + "ZONE NOT PROCESSED DUE TO MISSING ASSOCIATED RECORDS" + bc.ENDC)
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Name     " + zone_name)
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Type     " + zone_type)
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: ID       " + str(zone_id))
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Error          " + bc.red + "ZONE NOT PROCESSED DUE TO MISSING ASSOCIATED RECORDS" + bc.ENDC)
                 print("-" * line_len)
         # end for x in zones:
 
@@ -2328,14 +2327,14 @@ try:
                     #overrun time > 0
                     else:
                         if system_controller_active_status == 1:
-                            overrun_end_time = datetime.datetime.now() + datetime.timedelta(minutes = system_controller_overrun_time)
+                            overrun_end_time = time_stamp + datetime.timedelta(minutes = system_controller_overrun_time)
                             zone_overrun = zone_status_prev;
                         #system controller was switched of previous script run
                         else:
                             if system_controller_stop_datetime is not None:
                                 overrun_end_time = system_controller_stop_datetime  + datetime.timedelta(minutes = system_controller_overrun_time)
                                 # if overrun flag was switched on when system controller was switching on and ovverrun did not pass keep overrun on
-                                if datetime.datetime.now() < overrun_end_time and zone_overrun_prev == 1:
+                                if time_stamp < overrun_end_time and zone_overrun_prev == 1:
                                     zone_overrun = 1
                                 else:
                                     zone_overrun = 0
@@ -2355,13 +2354,13 @@ try:
                         )
                         con.commit()  # commit above
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone " + str(zone_id) + " circulation pump overrun active.")
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone " + str(zone_id) + " circulation pump overrun active.")
                         if system_controller_overrun_time > 0:
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun end time " + str(overrun_end_time))
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun end time " + str(overrun_end_time))
                         else:
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun will end on the next System Controller start.")
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Overrun will end on the next System Controller start.")
                 else:
                     #if zone is not category 0 or system controller is running overrun not needed
                     zone_overrun = 0
@@ -2410,7 +2409,7 @@ try:
                                     else:
                                         relay_status = relay_off
                                     if dbgLevel == 1:
-                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: GIOP Relay Status: " + bc.red + str(relay_status) + bc.ENDC + " (" + str(relay_on) + "=On, " + str(relay_off) + "=Off)")
+                                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: GIOP Relay Status: " + bc.red + str(relay_status) + bc.ENDC + " (" + str(relay_on) + "=On, " + str(relay_off) + "=Off)")
                                     cur.execute(
                                         "UPDATE messages_out SET sent = '0', payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
                                         [str(zone_command), zone_controler_id, zone_controler_child_id],
@@ -2422,7 +2421,7 @@ try:
         	       	        #****************************************************************************************
                                 if 'I2C' in zone_controller_type:
                                     subprocess.call("/var/www/cron/i2c/i2c_relay.py " + zone_controler_id + " " + zone_controler_child_id + " " + str(zone_command), shell=True)
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Relay Board: " + zone_controler_id + " Relay No: "  + zone_controler_child_id + " Status: " + str(zone_command))
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Relay Board: " + zone_controler_id + " Relay No: "  + zone_controler_child_id + " Status: " + str(zone_command))
 
                                 #***************************************************************************************
                                 # Zone Valve Wireless Section: MySensors Wireless or MQTT Relay module for your Zone Valve control.
@@ -2494,13 +2493,13 @@ try:
 
             if system_controller_stop_datetime is not None:
                 if dbgLevel >= 2:
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Switched Off At: " + str(system_controller_stop_datetime))
+                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Switched Off At: " + str(system_controller_stop_datetime))
 
             if expected_end_date_time is not None:
         #        pass
                 if dbgLevel >= 2:
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Expected End Time: " + str(expected_end_date_time))
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller ON Time: " + bc.red + str(system_controller_on_time) + bc.ENDC + " seconds")
+                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Expected End Time: " + str(expected_end_date_time))
+                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller ON Time: " + bc.red + str(system_controller_on_time) + bc.ENDC + " seconds")
 
             #***********************************
             #  System Controller On section
@@ -2572,7 +2571,7 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
                         if on_relay_type == 'MySensor' or on_relay_type == 'MQTT':
                             cur.execute(
                                 "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
@@ -2588,7 +2587,7 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
                     if system_controller_mode == 1 and (fan_relay_type == 'MySensor' or fan_relay_type == 'MQTT'):
                         cur.execute(
                             "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
@@ -2604,7 +2603,7 @@ try:
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
 
                     #******************************************************
                     # System Controller Wired to Raspberry Pi GPIO Section.
@@ -2625,7 +2624,7 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(off_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(off_relay_off) + bc.ENDC + " (" + str(off_relay_on) + "=On, " + str(off_relay_off) + "=Off)")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(off_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(off_relay_off) + bc.ENDC + " (" + str(off_relay_on) + "=On, " + str(off_relay_off) + "=Off)")
                         if on_relay_type == 'GPIO':
                             cur.execute(
                                 "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
@@ -2641,7 +2640,7 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(on_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(on_relay_on) + bc.ENDC + " (" + str(on_relay_on) + "=On, " + str(on_relay_off) + "=Off)")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(on_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(on_relay_on) + bc.ENDC + " (" + str(on_relay_on) + "=On, " + str(on_relay_off) + "=Off)")
                     if system_controller_mode == 1 and fan_relay_type == 'GPIO':
                         cur.execute(
                             "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
@@ -2657,7 +2656,7 @@ try:
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_on) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_on) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
 
 
                     #******************************************************************************************
@@ -2667,69 +2666,69 @@ try:
                         if system_controller_mode == 1 and off_relay_type == 'I2C':
                             subprocess.call("/var/www/cron/i2c/i2c_relay.py " + off_relay_id + " " + off_relay_child_id + " " + command, shell=True)
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(off_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(off_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(off_relay_child_id) + bc.ENDC)
                         if on_relay_type == 'I2C':
                             subprocess.call("/var/www/cron/i2c/i2c_relay.py " + on_relay_id + " " + on_relay_child_id + " " + command, shell=True)
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(on_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(on_relay_child_id) + bc.ENDC)
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(on_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(on_relay_child_id) + bc.ENDC)
                     if system_controller_mode == 1 and fan_relay_type == 'I2C':
                         subprocess.call("/var/www/cron/i2c/i2c_relay.py " + fan_relay_id + " " + fan_relay_child_id + " " + command, shell=True)
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
                 if system_controller_active_status != new_system_controller_status:
                     for key in zone_log_dict:
                         #insert date and time into Log table so we can record system controller start date and time.
                         if zone_log_dict[key] == 1:
                             if expected_end_date_time is not None:
                                 qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, 
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                             else:
                                 qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
                     #end foreach($zone_log as $key => $value)
                     #insert date and time into system controller log table so we can record system controller start date and time.
                     if expected_end_date_time is not None:
                         qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
-                                  VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                                  VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,system_controller_id,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                     else:
                         qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, `expected_end_date_time`)
-                                  VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,system_controller_id,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
+                                  VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,system_controller_id,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
                     try:
                         cur.execute(qry_str)
                         con.commit()
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
                     except:
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
                 else:
                     for key in zone_log_dict:
                         if zone_log_dict[key] != z_state_dict[key]:
                             if zone_log_dict[key] == 0:
-                                qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
+                                qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(time_stamp.strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
                             else:
                                 if expected_end_date_time is not None:
                                     qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                              `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
+                                              `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                                 else:
                                     qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                              `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
+                                              `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,NULL)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
 
             #end system_controller ON section
 
@@ -2766,7 +2765,7 @@ try:
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
-                                 print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
+                                 print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
                     if system_controller_mode == 1:
                         #update messages_out table with sent status to 0 and payload to as system controller status.
                         if cool_relay_type == 'MySensor' or cool_relay_type == 'MQTT': # HVAC cool relay OFF
@@ -2804,7 +2803,7 @@ try:
                                     )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Node ID: " + bc.red + str(node_id)+ bc.ENDC + " Child ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
 
                     #******************************************************
                     # System Controller Wired to Raspberry Pi GPIO Section.
@@ -2824,7 +2823,7 @@ try:
                             )
                             con.commit()  # commit above
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(heat_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(heat_relay_off) + bc.ENDC + " (" + str(heat_relay_on) + "=On, " + str(heat_relay_off) + "=Off)")
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(heat_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(heat_relay_off) + bc.ENDC + " (" + str(heat_relay_on) + "=On, " + str(heat_relay_off) + "=Off)")
                     if system_controller_mode == 1:
                         if cool_relay_type == 'GPIO':
                             cur.execute(
@@ -2841,7 +2840,7 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(cool_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(cool_relay_off) + bc.ENDC + " (" + str(cool_relay_on) + "=On, " + str(cool_relay_off) + "=Off)")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(cool_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(cool_relay_off) + bc.ENDC + " (" + str(cool_relay_on) + "=On, " + str(cool_relay_off) + "=Off)")
                         if fan_relay_type == 'GPIO':
                             cur.execute(
                                 "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
@@ -2863,7 +2862,7 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_off) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
+                                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller GPIO: " + bc.red + str(fan_relay_child_id)+ bc.ENDC + " Status: " + bc.red + str(fan_relay_off) + bc.ENDC + " (" + str(fan_relay_on) + "=On, " + str(fan_relay_off) + "=Off)")
 
                     #******************************************************************************************
                     # System Controller Wired over I2C Interface Make sure you have i2c Interface enabled
@@ -2871,42 +2870,42 @@ try:
                     if heat_relay_type == 'I2C':
                         subprocess.call("/var/www/cron/i2c/i2c_relay.py " + heat_relay_id + " " + heat_relay_child_id + " " + command, shell=True)
                         if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(heat_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
+                            print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(heat_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(heat_relay_child_id) + bc.ENDC)
                     if system_controller_mode == 1:
                         if cool_relay_type == 'I2C': # HVAC cool relay OFF
                             subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(cool_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(cool_relay_child_id) + bc.ENDC)
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(cool_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(cool_relay_child_id) + bc.ENDC)
                         if fan_relay_type == 'I2C':
                             if active_sc_mode == 5: # HVAC fan ON if set to fan mode, else turn OFF
                                 subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
                             else:
                                 subprocess.call("/var/www/cron/i2c/i2c_relay.py " + cool_relay_id + " " + cool_relay_child_id + " " + command, shell=True)
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller I2C Rrelay Board: " + bc.red + str(fan_relsy_id)+ bc.ENDC + " Relay ID: " + bc.red + str(fan_relay_child_id) + bc.ENDC)
 
                     #Update last record with system controller stop date and time in System Controller Log table.
                     if system_controller_active_status != new_system_controller_status:
                         for key in zone_log_dict:
                             if zone_log_dict[key] != z_state_dict[key]:
-                                qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
+                                qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(time_stamp.strftime("%Y-%m-%d %H:%M:%S"), stop_cause, key)
                                 try:
                                     cur.execute(qry_str)
                                     con.commit()
                                     if dbgLevel >= 2:
-                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
+                                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table updated Successfully.")
                                 except:
                                     if dbgLevel >= 2:
-                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
-                        qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), stop_cause, system_controller_id)
+                                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone Log table update failed.")
+                        qry_str = """UPDATE controller_zone_logs SET stop_datetime = '{}', stop_cause = '{}' WHERE `zone_id` = {} ORDER BY id DESC LIMIT 1;""".format(time_stamp.strftime("%Y-%m-%d %H:%M:%S"), stop_cause, system_controller_id)
                         try:
                             cur.execute(qry_str)
                             con.commit()
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table updated Successfully.")
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table updated Successfully.")
                         except:
                             if dbgLevel >= 2:
-                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table update failed.")
+                                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Log table update failed.")
 
 
             #if HVAC mode get the heat, cool and fan relay on/off state
@@ -2939,10 +2938,10 @@ try:
                         )
                     con.commit()  # commit above
                     if dbgLevel >= 2:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State updated Successfully.")
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State updated Successfully.")
                 except:
                     if dbgLevel >= 2:
-                         print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State update failed..")
+                         print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller HVAC Relay State update failed..")
                 if dbgLevel == 1:
                     if dbgLevel >= 2:
                         print("hvac_state - " + str(hvac_state))
@@ -2954,13 +2953,13 @@ try:
             #Following section is Optional for States collection
 
             if dbgLevel >= 2:
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Active Status: " + bc.red + str(new_system_controller_status) + bc.ENDC)
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Active Status: " + bc.red + str(new_system_controller_status) + bc.ENDC)
             if system_controller_mode == 0:
                 if dbgLevel >= 2:
-                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Hysteresis Status: " + bc.red + str(hysteresis) + bc.ENDC)
+                    print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller Hysteresis Status: " + bc.red + str(hysteresis) + bc.ENDC)
             if dbgLevel >= 2:
                 print("-" * line_len)
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Purging Marked Records.")
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Purging Marked Records.")
             #delete records where purge is set to 1
             qry_tuple = ('DELETE FROM boost WHERE `purge`= 1 LIMIT 1;',
                         'DELETE FROM override WHERE `purge`= 1  LIMIT 1;',
@@ -2979,10 +2978,10 @@ try:
                     cur.execute(q)
                     con.commit()
                     if dbgLevel == 1:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + "' Successful.")
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + "' Successful.")
                 except:
                     if dbgLevel == 1:
-                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + " 'Failed.")
+                        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Query '" + q + " 'Failed.")
 
             if dbgLevel >= 1:
                 print("-" * line_len)
@@ -2990,10 +2989,10 @@ try:
         #no zones to process
         else:
             if dbgLevel >= 1:
-                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Zones to Process.")
+                print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Zones to Process.")
                 print("-" * line_len)
 
-        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Controller Scan Ended")
+        print(bc.dtm + time_stamp.strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Controller Scan Ended")
         print(bc.grn + "*" * line_len + bc.ENDC)
         time.sleep(1)
 
