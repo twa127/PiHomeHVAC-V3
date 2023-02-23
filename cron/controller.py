@@ -1138,7 +1138,7 @@ try:
 
                     #Following to decide which temperature is target temperature
                     if livetemp_active == 1 and livetemp_zone_id == zone_id:
-                        target_c = livetemp_c
+                        target_c = float(livetemp_c)
                     elif boost_active == 1:
                         target_c = boost_c
                     elif night_climate_status == 1:
