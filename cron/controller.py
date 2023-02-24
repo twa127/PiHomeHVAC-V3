@@ -185,7 +185,6 @@ def get_schedule_status(
         sch_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
         for s in sch:
             #check each schedule for this zone
-            time_now = int_time_stamp
             time_id = s[sch_to_index["time_id"]]
             start_time = today_date + ", " + str(s[sch_to_index["start"]])
             start_time = time.mktime(datetime.datetime.strptime(start_time, "%d/%m/%Y, %H:%M:%S").timetuple())
@@ -209,9 +208,11 @@ def get_schedule_status(
                     weather = cur.fetchone()
                     weather_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                     sunrise_time = int(weather[weather_to_index["sunrise"]])
-#                    sunrise_time = datetime.datetime.fromtimestamp(sunrise_time).strftime("%H:%M:%S")
+                    sunrise_time = today_date + ", " + datetime.datetime.fromtimestamp(sunrise_time).strftime("%H:%M:%S")
+                    sunrise_time = time.mktime(datetime.datetime.strptime(sunrise_time, "%d/%m/%Y, %H:%M:%S").timetuple())
                     sunset_time = int(weather[weather_to_index["sunset"]])
-#                    sunset_time = datetime.datetime.fromtimestamp(sunset_time).strftime("%H:%M:%S")
+                    sunset_time = today_date + ", " + datetime.datetime.fromtimestamp(sunset_time).strftime("%H:%M:%S")
+                    sunset_time = time.mktime(datetime.datetime.strptime(sunset_time, "%d/%m/%Y, %H:%M:%S").timetuple())
                     if start_sr == 1 or start_ss == 1:
                         if start_sr == 1:
                             start_time = sunrise_time
@@ -274,7 +275,7 @@ def get_schedule_status(
                         start_time_temp_offset = 0;
                     start_time = start_time - (start_time_temp_offset * 60)
 
-            if (end_time > start_time and time_now > start_time and time_now < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and time_now < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and time_now > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == 1:
+            if (end_time > start_time and int_time_stamp > start_time and int_time_stamp < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and int_time_stamp < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and int_time_stamp > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == 1:
                 sch_status = 1
                 away_sch = 1
                 break #exit the loop if an active schedule found
@@ -307,9 +308,9 @@ try:
         time_stamp = datetime.datetime.now()
         int_time_stamp = int(time_stamp.timestamp())
         dow = int(time_stamp.date().strftime('%w'))
-        prev_dow = int((datetime.date.today() + datetime.timedelta(days =- 1)).strftime("%w"))
-        today_date = datetime.date.today().strftime("%d/%m/%Y")
-        tomorrow_date = (datetime.date.today() + datetime.timedelta(days = 1)).strftime("%d/%m/%Y")
+        prev_dow = int((time_stamp + datetime.timedelta(days =- 1)).strftime("%w"))
+        today_date = time_stamp.strftime("%d/%m/%Y")
+        tomorrow_date = (time_stamp + datetime.timedelta(days = 1)).strftime("%d/%m/%Y")
         sensor_seen_time = None
         temp_reading_time = None
         expected_end_date_time = None
