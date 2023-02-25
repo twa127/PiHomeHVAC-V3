@@ -123,15 +123,15 @@ $theme = settings($conn, 'theme');
 		                        $query = "SELECT name, min_c, max_c, default_c FROM zone_view WHERE id =  ".$livetemp_zone_id." LIMIT 1";
                 		        $zresult = $conn->query($query);
 		                        $zrow = mysqli_fetch_array($zresult);
-/*                		        if ($zone_mode == 0) {
+                		        if ($zone_mode_main == 140) {
                                 		$set_temp = $zrow['default_c'];
 		                        } else {
                 		                $set_temp = $row['temp_target'];
-		                        } */
+		                        }
         			        switch ($zone_mode_main) {
-/*                	        		case 0:
+                	        		case 0:
 		                        	        $current_mode = "";
-                		                	break; */
+                		                	break;
 	                        		case 50:
 		        	                        $current_mode = "Night Climate";
                 			                break;
@@ -178,7 +178,7 @@ $theme = settings($conn, 'theme');
                 	                                                		echo '<h4><br><p>'.$lang['livetemp_no_control_zone'].'</p></h4><br>';
 		        	                                                }
 									} else {
-										echo '<h4><br><p>'.$zrow["name"].' Zone '.'Needs to be running a Schedule or in CE Mode or BOTH Mode or Boost Mode or Override Mode'.'</p></h4><br>';
+										echo '<h4><br><p>'.$zrow["name"].' Zone '.$lang['no_livetemp'].'</p></h4><br>';
 									}
                 		                                echo '</div>
                                 		        </div>
