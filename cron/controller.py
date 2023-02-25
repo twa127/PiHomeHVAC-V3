@@ -859,7 +859,7 @@ try:
                                         http = cur.fetchone()
                                         http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                                         http_command = http[http_to_index["command"]]
-                                        url = "http://" + base_addr + zone_controler_child_id + "/cm"
+                                        url = "http://" + base_addr + str(zone_controler_child_id) + "/cm"
                                         cmd = "POWER"
                                         param = "ON"
                                         myobj = {"cmnd": "power"}
