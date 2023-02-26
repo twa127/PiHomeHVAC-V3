@@ -926,7 +926,7 @@ try:
                                     con.commit()  # commit above
                             cur.execute(
                                 "UPDATE zone_relays SET state = %s, current_state = %s WHERE zone_id = %s;",
-                                [set, zone_id],
+                                [set, set, zone_id],
                             )
                             con.commit()  # commit above
                             if sch_active == 0:
@@ -1079,7 +1079,7 @@ try:
                         #night climate time to add 10 minuts for record purpose
                         nc_end_time_rc = time_stamp+ datetime.timedelta(minutes = 10)
                         nc_end_time_rc_str = nc_end_time_rc.strftime('%Y-%m-%d %H:%M:%S')
-                        if away_sch == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), time_stamp.time()) and nc_time_status =='1' and nc_zone_status =='1' and nc_weekday > 0:
+                        if away_sch == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), time_stamp.time()) and nc_time_status == 1 and nc_zone_status == 1 and nc_weekday > 0:
                             if dbgLevel >= 2:
                                 print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Night Climate Enabled for This Zone")
                             night_climate_status = 1
