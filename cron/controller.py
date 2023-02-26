@@ -766,8 +766,8 @@ try:
                     sch_c = 0
                     sch_holidays = 0
                 else:
-                    sch_end_time_str = datetime.datetime.fromtimestamp(rval['end_time']).strftime('%Y-%m-%d %H:%M:%S')
                     sch_end_time = rval['end_time']
+                    sch_end_time_str = datetime.datetime.fromtimestamp(sch_end_time).strftime('%Y-%m-%d %H:%M:%S')
                     sch_status = rval['sch_status']
                     time_id = rval['time_id']
                     cur.execute(
