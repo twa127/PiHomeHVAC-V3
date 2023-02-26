@@ -2445,7 +2445,7 @@ try:
                                     if cur.rowcount > 0:
                                         http = cur.fetchone()
                                         http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                        add_on_msg = http[http_msg_to_index["command"]] + " " + http[http_to_index["parameter"]]
+                                        add_on_msg = http[http_to_index["command"]] + " " + http[http_to_index["parameter"]]
                                         cur.execute(
                                             "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
                                             [add_on_msg, zone_controler_id, zone_controler_child_id],
