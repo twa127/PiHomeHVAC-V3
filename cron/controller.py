@@ -2274,7 +2274,7 @@ try:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
                         #zone switching OFF
-                        elif zone_status_prev == '1' and  zone_status == 0:
+                        elif zone_status_prev == 1 and  zone_status == 0:
                             try:
                                 cur.execute(
                                     "UPDATE add_on_logs SET stop_datetime = %s, stop_cause = %s WHERE `zone_id` = %s ORDER BY id DESC LIMIT 1;",
