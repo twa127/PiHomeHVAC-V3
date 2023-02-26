@@ -2258,7 +2258,7 @@ try:
                             except:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
-                        elif zone_status_prev == '0' and  (zone_status == 1 or zone_state  == 1):
+                        elif zone_status_prev == 0 and  (zone_status == 1 or zone_state  == 1):
                             if zone_mode == 111 or zone_mode == 114 or zone_mode == 21 or  zone_mode == 10 or  zone_mode == 141:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
