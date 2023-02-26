@@ -633,7 +633,7 @@ try:
         controllers_dict = {}
         for z in zones:
             zone_status=z[zones_to_index["status"]]
-            zone_state = z[zones_to_index["zone_state"]]
+            zone_state_current = z[zones_to_index["zone_state"]]
             zone_id = z[zones_to_index["id"]]
             zone_name=z[zones_to_index["name"]]
             zone_type=z[zones_to_index["type"]]
@@ -949,7 +949,7 @@ try:
                                 [set, zone_id],
                             )
                             con.commit()  # commit above
-                            zone_state = set
+                            zone_state_current = set
                             if sch_status == 1:
                                 if zone_override_status == 0:
                                     cur.execute(
@@ -1200,7 +1200,7 @@ try:
                                 print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - System Controller controler communication timeout. System Controller Last Seen: " + str(heat_relay_seen))
 
                     #create array zone states, used to determine if new zone log table entry is required
-                    z_state_dict[zone_id] = zone_state
+                    z_state_dict[zone_id] = zone_state_current
                 #end Check Zone category 0 or 1
 
                 #check frost protection linked to this zone controller
@@ -1257,10 +1257,12 @@ try:
 
                 #initialize variables
                 zone_mode = 0
+                zone_state = 0
                 if sc_mode != 0 and away_status == 1 and away_sch == 1:
                     active_sc_mode = 1
                 else:
                     active_sc_mode = sc_mode
+
                 #check no zone fault and if not a switch zone (cat 2) that there is a valid zone sensor reading 
                 if zone_fault == 0 and (zone_c is not None or zone_category == 2):
 
@@ -1721,7 +1723,7 @@ try:
                                 zone_mode = 0
                                 zone_state = 0
                                 add_on_stop_cause = "Boost Finished"
-                            elif zone_state == 0 and zone_override_status == 0 and zone_status_prev == 1:
+                            elif zone_state_current == 0 and zone_override_status == 0 and zone_status_prev == 1:
                                 zone_status = 0
                                 zone_mode = 0
                                 zone_state = 0
@@ -2244,7 +2246,7 @@ try:
                             except:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
-                            if zone_mode == 111 or zone_mode == 114 or zone_mode == 21 or  zone_mode == 10:
+                            if zone_mode == 114 or zone_mode == 21 or  zone_mode == 10:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
@@ -2259,7 +2261,7 @@ try:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
                         elif zone_status_prev == 0 and  (zone_status == 1 or zone_state  == 1):
-                            if zone_mode == 111 or zone_mode == 114 or zone_mode == 21 or  zone_mode == 10 or  zone_mode == 141:
+                            if zone_mode == 114 or zone_mode == 21 or  zone_mode == 10 or  zone_mode == 141:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
