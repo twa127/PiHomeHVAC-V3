@@ -686,9 +686,9 @@ try:
                 zone_current_state_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                 zone_status_prev = zone_current_state[zone_current_state_to_index["status"]]
                 zone_overrun_prev = zone_current_state[zone_current_state_to_index["overrun"]]
-                zone_current_mode = zone_current_state[zone_current_state_to_index["mode"]]
+                zone_mode_current = zone_current_state[zone_current_state_to_index["mode"]]
 
-                if (zone_id == livetemp_zone_id) and (livetemp_active == 1) and (zone_current_mode == 0):
+                if (zone_id == livetemp_zone_id) and (livetemp_active == 1) and (zone_mode_current == 0):
                     cur.execute(
                         'UPDATE livetemp SET active = 0 WHERE zone_id = %s',
                         [zone_id, ],
@@ -829,7 +829,7 @@ try:
                             current_state = zone_status_prev;
                             add_on_state = controllers_dict[key]["zone_controller_state"]
                             zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                            if zone_current_mode == 74 or zone_current_mode == 75:
+                            if zone_mode_current == 74 or zone_mode_current == 75:
                                 if sch_status == 1:
                                     if current_state != add_on_state:
                                         cur.execute(
@@ -910,14 +910,14 @@ try:
                                         if cur.rowcount > 0:
                                             http_message = cur.fetchone()
                                             http_message_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                            set =  message_type
+                                            set =  int(message_type)
                                             payload = http_message[http_message_to_index['command']] + " " + http_message[http_message_to_index['parameter']]
                                     else:
                                         if add_on_state == 0:
-                                            set="0"
+                                            set = 0
                                             payload = "0"
                                         else:
-                                            set="1"
+                                            set = 1
                                             payload = "1"
                                     cur.execute(
                                         "UPDATE messages_out SET payload = %s, datetime = %s, sent = '0' WHERE id = %s;",
@@ -1257,14 +1257,15 @@ try:
 
                 #initialize variables
                 zone_mode = 0
-                zone_state = 0
                 if sc_mode != 0 and away_status == 1 and away_sch == 1:
                     active_sc_mode = 1
                 else:
                     active_sc_mode = sc_mode
-
                 #check no zone fault and if not a switch zone (cat 2) that there is a valid zone sensor reading 
                 if zone_fault == 0 and (zone_c is not None or zone_category == 2):
+
+                    if dbgLevel == 1:
+                        print("zone_state_current",zone_state_current,type(zone_state_current),"zone_status_prev",zone_status_prev,type(zone_status_prev),"sch_status",sch_status,"boost_status",boost_status,"zone_status",zone_status,"zone_override_status",zone_override_status,type(zone_override_status))
 
                     #process category 0 zone (BOILER)
                     #----------------------------------------------------------------------
@@ -1718,7 +1719,7 @@ try:
                                 zone_mode = 40
                                 zone_state = 0
                                 add_on_stop_cause = "Holiday Active"
-                            elif boost_status == 0 and zone_current_mode == 64:
+                            elif boost_status == 0 and zone_mode_current == 64:
                                 zone_status = 0
                                 zone_mode = 0
                                 zone_state = 0
@@ -1728,9 +1729,10 @@ try:
                                 zone_mode = 0
                                 zone_state = 0
                                 add_on_stop_cause = "Manual Stop"
-                            elif sch_status == 0 and zone_state == 0 and boost_status == 0:
+                            elif sch_status == 0 and zone_state_current == 0 and boost_status == 0:
                                 zone_status = 0
                                 zone_mode = 0
+                                zone_state = 0
                                 add_on_stop_cause = "No Schedule"
                             elif sch_status == 1:
                                 if zone_override_status == 0:
@@ -1738,10 +1740,11 @@ try:
                                     zone_mode = 111
                                     zone_state = 1
                                     add_on_start_cause = "Schedule Started"
-                                    expected_end_date_time = sch_end_time_str
+                                    add_on_expected_end_date_time = sch_end_time_str
                                 else:
                                     if add_on_state == 1 or zone_state == 1:
                                         zone_status = 1
+                                        zone_state = 1
                                     else:
                                         zone_status = 0
                                         zone_mode = 75 - add_on_state
@@ -1750,20 +1753,20 @@ try:
                                             add_on_start_cause = "Manual Override ON State"
                                         elif zone_mode == 75:
                                             add_on_stop_cause = "Manual Override OFF State"
-                                        expected_end_date_time = sch_end_time_str
+                                        add_on_expected_end_date_time = sch_end_time_str
                             elif boost_status == 1:
                                 zone_status = 1
                                 zone_mode = 64
                                 add_on_start_cause = "Boost Active"
                                 zone_state = 1
-                                expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
-                            elif zone_state == 1:
-                                if zone_current_mode == 111:
+                                add_on_expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
+                            elif zone_state_current == 1:
+                                if zone_mode_current == 111:
                                     zone_status = 0
                                     zone_mode = 0
                                     zone_state = 0
                                     add_on_stop_cause = "Schedule Finished"
-                                elif zone_current_mode == 74 or zone_current_mode == 75:
+                                elif zone_mode_current == 74 or zone_mode_current == 75:
                                     zone_status = 0
                                     zone_mode = 0
                                     zone_state = 0
@@ -1778,7 +1781,6 @@ try:
                             zone_mode = 0
                             add_on_stop_cause = "System is OFF"
                             zone_state = 0
-
                     #process Zones with NO System Controller and a Positive Sensor Gradient
                     #----------------------------------------------------------------------
                     elif zone_category == 1 and sensor_type_id != 3:
@@ -1823,7 +1825,7 @@ try:
                                                 zone_status = 1
                                                 zone_mode = 71
                                                 add_on_start_cause = "Schedule Override Started"
-                                                expected_end_date_time = sch_end_time_str
+                                                add_on_expected_end_date_time = sch_end_time_str
                                                 zone_state = 1
                                             if zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                 zone_status = zone_status_prev
@@ -1845,7 +1847,7 @@ try:
                                                     zone_mode = 111
                                                     add_on_start_cause = "Schedule Started"
                                                     add_on_stop_cause = "Schedule Started"
-                                                    expected_end_date_time = sch_end_time_str
+                                                    add_on_expected_end_date_time = sch_end_time_str
                                                     zone_state = 1
                                                 if sch_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                     zone_status = zone_status_prev
@@ -1872,26 +1874,26 @@ try:
                                                 zone_status = 1
                                                 zone_mode = 51
                                                 add_on_start_cause = "Night Climate"
-                                                expected_end_date_time = nc_end_time_rc_str
+                                                add_on_expected_end_date_time = nc_end_time_rc_str
                                                 zone_state = 1
                                             elif night_climate_status== 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                                 zone_status = zone_status_prev
                                                 zone_mode = 52 - zone_status_prev
                                                 add_on_start_cause = "Night Climate Deadband"
                                                 add_on_stop_cause = "Night Climate Deadband"
-                                                expected_end_date_time = nc_end_time_rc_str
+                                                add_on_expected_end_date_time = nc_end_time_rc_str
                                                 zone_state = zone_status_prev
                                             elif night_climate_status == 1 and zone_c >= temp_cut_out:
                                                 zone_status = 0
                                                 zone_mode = 50
                                                 add_on_stop_cause = "Night Climate C Reached"
-                                                expected_end_date_time = nc_end_time_rc_str
+                                                add_on_expected_end_date_time = nc_end_time_rc_str
                                                 zone_state = 0
                                         elif boost_status == 1 and zone_c < temp_cut_out_rising:
                                             zone_status = 1
                                             zone_mode = 61
                                             add_on_start_cause = "Boost Active"
-                                            expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
+                                            add_on_expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                             zone_state = 1
                                         elif boost_status == 1 and zone_c >= temp_cut_out_rising and zone_c < temp_cut_out:
                                             zone_status = zone_status_prev
@@ -2003,26 +2005,26 @@ try:
                                             zone_status = 1
                                             zone_mode = 51
                                             add_on_start_cause = "Night Climate"
-                                            expected_end_date_time = nc_end_time_rc_str
+                                            add_on_expected_end_date_time = nc_end_time_rc_str
                                             zone_state = 1
                                         elif night_climate_status == 1 and zone_c <= temp_cut_out_falling and zone_c > temp_cut_out:
                                             zone_status = zone_status_prev
                                             zone_mode = 52 - zone_status_prev
                                             add_on_start_cause = "Night Climate Deadband"
                                             add_on_stop_cause = "Night Climate Deadband"
-                                            expected_end_date_time = nc_end_time_rc_str
+                                            add_on_expected_end_date_time = nc_end_time_rc_str
                                             zone_state = zone_status_prev
                                         elif night_climate_status == 1 and zone_c <= temp_cut_out:
                                             zone_status = 0
                                             zone_mode = 50
                                             add_on_stop_cause = "Night Climate C Reached"
-                                            expected_end_date_time = nc_end_time_rc_str
+                                            add_on_expected_end_date_time = nc_end_time_rc_str
                                             zone_state = 0
                                     elif boost_status == 1 and zone_c > temp_cut_out_falling:
                                         zone_status= 1
                                         zone_mode = 61
                                         add_on_start_cause = "Boost Active"
-                                        expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
+                                        add_on_expected_end_date_time = boost_time + datetime.timedelta(minutes = boost_minute)
                                         zone_state = 1
                                     elif boost_status == 1 and zone_c <= temp_cut_out_falling and zone_c > temp_cut_out:
                                         zone_status = zone_status_prev
@@ -2064,7 +2066,7 @@ try:
                 )
                 con.commit()  # commit above
                 if dbgLevel == 1:
-                    print("sch_status " + str(sch_status) + ", zone_state " + str(zone_state) + ", boost_status " + str(boost_status) + ", override_status " + str(zone_override_status) + ", zone_current_mode " + str(zone_current_mode) + ", zone_status_prev " + str(zone_status_prev), ", hysteresis_status " + str(hysteresis))
+                    print("sch_status " + str(sch_status) + ", zone_state " + str(zone_state) + ", boost_status " + str(boost_status) + ", override_status " + str(zone_override_status) + ", zone_mode_current " + str(zone_mode_current) + ", zone_status_prev " + str(zone_status_prev), ", hysteresis_status " + str(hysteresis))
 
                 #Update the individual zone controller states for controllers associated with this zone
                 for key in controllers_dict:
@@ -2231,9 +2233,10 @@ try:
                 else:
                     #Process Logs Category 1, 2 and 4 logs if zone status has changed
                     #zone switching ON
-                    mode_1 = floor(zone_current_mode/10)*10
+                    mode_1 = floor(zone_mode_current/10)*10
                     mode_2 = floor(zone_mode/10)*10
-                    if zone_current_mode != zone_mode:
+#                    print("mode_1",mode_1,"mode_2",mode_1,"zone_mode_current",zone_mode_current,"zone_mode",zone_mode,"zone_status",zone_status,"zone_status_prev",zone_status_prev,"zone_state",zone_state)
+                    if zone_mode_current != zone_mode:
                         if (mode_1 == 110 and mode_2 == 140) or (mode_1 == 140 and mode_2 == 110):
                             try:
                                 cur.execute(
@@ -2251,7 +2254,7 @@ try:
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,add_on_expected_end_date_time)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
@@ -2261,12 +2264,13 @@ try:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
                         elif zone_status_prev == 0 and  (zone_status == 1 or zone_state  == 1):
+                            print(zone_mode)
                             if zone_mode == 114 or zone_mode == 21 or  zone_mode == 10 or  zone_mode == 141:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,expected_end_date_time)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,add_on_expected_end_date_time)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
@@ -2741,7 +2745,7 @@ try:
             else:
                 new_system_controller_status = 0
                 #change relay states on change
-                if system_controller_active_status != new_system_controller_status or active_sc_mode != sc_mode_prev or zone_current_mode != zone_mode or zone_current_mode != zone_mode or heat_relay_type == 'MySensor' or cool_relay_type == 'MySensor' or fan_relay_type == 'MySensor':
+                if system_controller_active_status != new_system_controller_status or active_sc_mode != sc_mode_prev or zone_mode_current != zone_mode or zone_mode_current != zone_mode or heat_relay_type == 'MySensor' or cool_relay_type == 'MySensor' or fan_relay_type == 'MySensor':
                     #update system controller active status to 1
                     cur.execute(
                         "UPDATE system_controller SET sync = 0, active_status = %s, sc_mode_prev = %s WHERE id = 1 LIMIT 1;",
@@ -2997,7 +3001,10 @@ try:
 
         print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Controller Scan Ended")
         print(bc.grn + "*" * line_len + bc.ENDC)
-        time.sleep(1)
+        if dbgLevel >= 1:
+            time.sleep(10)
+        else:
+            time.sleep(1)
 
 except:
     print(traceback.format_exc())
