@@ -27,7 +27,7 @@ print("********************************************************")
 print("*              System Controller Script                *")
 print("*                                                      *")
 print("*               Build Date: 10/02/2023                 *")
-print("*       Version 0.01 - Last Modified 27/02/2023        *")
+print("*       Version 0.01 - Last Modified 10/02/2023        *")
 print("*                                 Have Fun - PiHome.eu *")
 print("********************************************************")
 print(" " + bc.ENDC)
@@ -180,7 +180,6 @@ def get_schedule_status(
     sch_count = cur.rowcount
     if sch_count > 0:
         sch_status = 0;
-        away_sch = 0;
         sch = cur.fetchall()
         sch_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
         for s in sch:
@@ -277,23 +276,19 @@ def get_schedule_status(
 
             if (end_time > start_time and int_time_stamp > start_time and int_time_stamp < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and int_time_stamp < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and int_time_stamp > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == 1:
                 sch_status = 1
-                away_sch = 1
                 break #exit the loop if an active schedule found
             else: 
                 sch_status = 0;
-                away_sch = 0;
         #end for s in sch: loop
     else:
         sch_name = "";
         sch_status = 0;
         time_id = 0;
-        away_sch = 0;
 
     rval_dict = {}
     rval_dict["sch_name"] = sch_name
     rval_dict["sch_status"] = sch_status
     rval_dict["time_id"] = time_id
-    rval_dict["away_sch"] = away_sch
     rval_dict["end_time"] = end_time
     rval_dict["sch_count"] = sch_count
     return rval_dict
@@ -651,19 +646,20 @@ try:
             relays = cur.fetchall()
             relay_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
             index = 0
-#            controllers_dict = {}
+            controllers_dict[zone_id] = {}
             for relay in relays:
-                controllers_dict[zone_id] = {}
-                controllers_dict[zone_id]["zc_id"] = relay[relay_to_index["zc_id"]]
-                controllers_dict[zone_id]["controler_id"] = relay[relay_to_index["relay_id"]]
-                controllers_dict[zone_id]["controler_child_id"] = relay[relay_to_index["relay_child_id"]]
-                controllers_dict[zone_id]["relay_type_id"] = relay[relay_to_index["relay_type_id"]]
-                controllers_dict[zone_id]["controler_on_trigger"] = relay[relay_to_index["on_trigger"]]
-                controllers_dict[zone_id]["controller_relay_id"] = relay[relay_to_index["zone_relay_id"]]
-                controllers_dict[zone_id]["zone_controller_state"] = relay[relay_to_index["state"]]
-                controllers_dict[zone_id]["zone_controller_current_state"] = relay[relay_to_index["current_state"]]
-                controllers_dict[zone_id]["zone_controller_type"] = relay[relay_to_index["type"]]
-                controllers_dict[zone_id]["manual_button_override"] = 0
+#                print("T1",zone_id,relay[relay_to_index["zc_id"]])
+                zc_id = relay[relay_to_index["zc_id"]]
+                controllers_dict[zone_id][zc_id] = {}
+                controllers_dict[zone_id][zc_id ]["controler_id"] = relay[relay_to_index["relay_id"]]
+                controllers_dict[zone_id][zc_id ]["controler_child_id"] = relay[relay_to_index["relay_child_id"]]
+                controllers_dict[zone_id][zc_id ]["relay_type_id"] = relay[relay_to_index["relay_type_id"]]
+                controllers_dict[zone_id][zc_id ]["controler_on_trigger"] = relay[relay_to_index["on_trigger"]]
+                controllers_dict[zone_id][zc_id ]["controller_relay_id"] = relay[relay_to_index["zone_relay_id"]]
+                controllers_dict[zone_id][zc_id ]["zone_controller_state"] = relay[relay_to_index["state"]]
+                controllers_dict[zone_id][zc_id ]["zone_controller_current_state"] = relay[relay_to_index["current_state"]]
+                controllers_dict[zone_id][zc_id ]["zone_controller_type"] = relay[relay_to_index["type"]]
+                controllers_dict[zone_id][zc_id ]["manual_button_override"] = 0
             #query to check if zone_current_state record exists tor the zone
             cur.execute(
                 "SELECT * FROM zone_current_state WHERE zone_id = %s LIMIT 1;",
@@ -698,7 +694,7 @@ try:
             # process if a sensor is attached to this zone
             if zone_category == 0 or zone_category == 1 or zone_category == 3 or zone_category == 4 or zone_category == 5:
                 cur.execute(
-                    """SELECT zone_sensors.*, sensors.sensor_id, sensors.sensor_child_id, sensors.sensor_type_id, sensors.frost_controller
+                    """SELECT zone_sensors.*, sensors.sensor_id, sensors.sensor_child_id, sensors.name, sensors.sensor_type_id, sensors.frost_controller, sensors.frost_temp
                     FROM  zone_sensors, sensors
                     WHERE (zone_sensors.zone_sensor_id = sensors.id) AND zone_sensors.zone_id = %s LIMIT 1;""",
                     (zone_id,),
@@ -715,7 +711,9 @@ try:
                     zone_sensor_child_id = sensor[sensor_to_index["sensor_child_id"]]
                     default_c = sensor[sensor_to_index["default_c"]]
                     sensor_type_id = sensor[sensor_to_index["sensor_type_id"]]
-                    hvac_frost_controller = sensor[sensor_to_index["frost_controller"]]
+                    zone_sensor_name = sensor[sensor_to_index["name"]]
+                    zone_frost_controller = sensor[sensor_to_index["frost_controller"]]
+                    zone_frost_temp = sensor[sensor_to_index["frost_temp"]]
                     zone_maintain_default = sensor[sensor_to_index["default_m"]]
 
                     cur.execute(
@@ -745,9 +743,28 @@ try:
                             messages_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             zone_c = float(messages_in[messages_in_to_index["payload"]])
                             temp_reading_time = messages_in[messages_in_to_index["datetime"]]
+                            #check frost protection linked to this zone controller
+                            if zone_frost_controller != 0:
+                                frost_active = 0
+                                frost_target_c = 99
+                                frost_sensor_c = zone_c
+                                if frost_sensor_c < (zone_frost_temp - zone_sp_deadband) and zone_frost_temp != 0:
+                                    frost_active = 1
+                                    #use the lowest value if multiple values
+                                    if zone_frost_temp < frost_target_c:
+                                        frost_target_c = zone_frost_temp
+                                elif frost_sensor_c >= (frost_target_c - zone_sp_deadband) and frost_sensor_c < frost_target_c:
+                                    frost_active = 2
+                                    #use the lowest value if multiple values
+                                    if zone_frost_temp < frost_target_c:
+                                        frost_target_c = zone_frost_temp
+                                if dbgLevel == 1:
+                                    print("Sensor Name - " + zone_sensor_name + ", Frost Target Temperture - " + str(frost_target_c) + ", Frost Sensor Temperature - " + str(frost_sensor_c))
                         else:
                             zone_c = None;
                             temp_reading_time = None;
+            else:
+                zone_frost_controller = 0
 
             #only process active zones with a sensor or a category 2 type zone
             if zone_status == 1 and (sensor_rowcount != 0 or zone_category == 2):
@@ -758,7 +775,6 @@ try:
                 )
                 sch_status = rval['sch_status'];
                 sch_name = rval['sch_name'];
-                away_sch = rval['away_sch'];
                 if sch_active == 0 and sch_status == 1:
                     sch_active = 1
                 if rval['sch_count'] == 0:
@@ -799,9 +815,9 @@ try:
 
                 if zone_category != 3:
                     manual_button_override = 0
-                    for key in controllers_dict:
-                        zone_controler_id = controllers_dict[key]["controler_id"]
-                        zone_controler_child_id = controllers_dict[key]["controler_child_id"]
+                    for key in controllers_dict[zone_id]:
+                        zone_controler_id = controllers_dict[zone_id][key]["controler_id"]
+                        zone_controler_child_id = controllers_dict[zone_id][key]["controler_child_id"]
                         zone_fault = 0
                         zone_ctr_fault = 0
                         zone_sensor_fault = 0
@@ -827,8 +843,8 @@ try:
                         #if add-on controller then process state change from GUI or api call
                         if zone_category == 2:
                             current_state = zone_status_prev;
-                            add_on_state = controllers_dict[key]["zone_controller_state"]
-                            zone_controler_child_id = controllers_dict[key]["controler_child_id"]
+                            add_on_state = controllers_dict[zone_id][key]["zone_controller_state"]
+                            zone_controler_child_id = controllers_dict[zone_id][key]["controler_child_id"]
                             if zone_mode_current == 74 or zone_mode_current == 75:
                                 if sch_status == 1:
                                     if current_state != add_on_state:
@@ -874,6 +890,7 @@ try:
                                                     manual_button_override = 1
                                         except:
                                             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
+                    #end for key in controllers_dict[zone_id]:
 
                     #if there has been an external update to any of the relays associated with this zone (both Tasmota and MySensor), then update MaxAir to capture the new state
                     #will update the following tables - messages_out, zone, zone_relays, zone_current state and override
@@ -1079,7 +1096,7 @@ try:
                         #night climate time to add 10 minuts for record purpose
                         nc_end_time_rc = time_stamp+ datetime.timedelta(minutes = 10)
                         nc_end_time_rc_str = nc_end_time_rc.strftime('%Y-%m-%d %H:%M:%S')
-                        if away_sch == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), time_stamp.time()) and nc_time_status == 1 and nc_zone_status == 1 and nc_weekday > 0:
+                        if sch_status == 0 and isNowInTimePeriod((datetime.datetime.min + nc_start_time).time(), (datetime.datetime.min + nc_end_time).time(), time_stamp.time()) and nc_time_status == 1 and nc_zone_status == 1 and nc_weekday > 0:
                             if dbgLevel >= 2:
                                 print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Night Climate Enabled for This Zone")
                             night_climate_status = 1
@@ -1203,61 +1220,11 @@ try:
                     z_state_dict[zone_id] = zone_state_current
                 #end Check Zone category 0 or 1
 
-                #check frost protection linked to this zone controller
-                if system_controller_mode == 0:
-                    frost_controller = controllers_dict[zone_id]["controller_relay_id"]
-                else:
-                    frost_controller = hvac_frost_controller
-
-                frost_active = 0
-                frost_target_c = 99
-
-                cur.execute(
-                    """SELECT sensors.sensor_id, sensors.sensor_child_id, sensors.name AS sensor_name, sensors.frost_temp, relays.name AS controller_name FROM sensors, relays
-                    WHERE (sensors.frost_controller = relays.id) AND frost_controller = %s;""",
-                    (frost_controller,),
-                )
-                if cur.rowcount > 0:
-                    frost = cur.fetchall()
-                    frost_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                    for f in frost:
-                        frost_c = f[frost_to_index["frost_temp"]]
-                        cur.execute(
-                            "SELECT * FROM nodes WHERE id = %s LIMIT 1;",
-                            (f[frost_to_index['sensor_id']], ),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            frost_sensor_node_id = node[node_in_to_index['node_id']]
-                            frost_sensor_child_id = node[node_in_to_index['sensor_child_id']]
-                            #query to get temperature from messages_in_view_24h table view
-                            cur.execute(
-                                "SELECT payload, datetime FROM  `messages_in_view_24h` WHERE node_id = %s AND child_id = %s;",
-                                (frost_sensor_node_id, frost_sensor_child_id),
-                            )
-                            if cur.rowcount > 0:
-                                msg_in = cur.fetchone()
-                                msg_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                frost_sensor_c = msg_in[msg_in_to_index['payload']]
-                                if frost_sensor_c < (frost_c - zone_sp_deadband) and frost_c != 0:
-                                    frost_active = 1
-                                    #use the lowest value if multiple values
-                                    if frost_c < frost_target_c:
-                                        frost_target_c = frost_c
-                                elif frost_sensor_c >= (frost_target_c - zone_sp_deadband) and frost_sensor_c < frost_target_c:
-                                    frost_active = 2
-                                    #use the lowest value if multiple values
-                                    if frost_c < frost_target_c:
-                                        frost_target_c = frost_c
-                                if dbgLevel == 1:
-                                    print("Sensor Name - " + f[frost_to_index['sensor_name']] + ", Frost Target Temperture - " + str(frost_target_c) + ", Frost Sensor Temperature - " +str(frost_sensor_c))
-
                 #****************************** MAIN PROCESSING SECTION ******************************
 
                 #initialize variables
                 zone_mode = 0
-                if sc_mode != 0 and away_status == 1 and away_sch == 1:
+                if sc_mode != 0 and away_status == 1 and sch_status == 1:
                     active_sc_mode = 1
                 else:
                     active_sc_mode = sc_mode
@@ -1303,7 +1270,7 @@ try:
                                             zone_mode = 140
                                             stop_cause = "Manual Target C Achieved"
                                             zone_state = 0
-                                    elif away_status == 0 or (away_status == 1 and away_sch == 1):
+                                    elif away_status == 0 or (away_status == 1 and sch_status == 1):
                                         if holidays_status == 0 or sch_holidays == 1:
                                             if sch_active and zone_override_status == 1:
                                                 zone_status = 0
@@ -1404,7 +1371,7 @@ try:
                                             zone_mode = 40
                                             stop_cause = "Holiday Active"
                                             zone_state = 0
-                                    elif away_status == 1 and away_sch == 0:
+                                    elif away_status == 1 and sch_status == 0:
                                         zone_status = 0
                                         zone_mode = 90
                                         stop_cause = "Away Active"
@@ -1449,7 +1416,7 @@ try:
                                 zone_state = zone_status_prev
                                 hvac_state = 1
                             elif frost_active == 0 and zone_c < zone_max_c and zone_c > zone_min_c:
-                                if away_status == 0 or (away_status == 1 and away_sch == 1):
+                                if away_status == 0 or (away_status == 1 and sch_status == 1):
                                     if holidays_status == 0 or sch_holidays == 1:
                                         if boost_status == 0:
                                             zone_status="0"
@@ -1616,7 +1583,7 @@ try:
                                         stop_cause = "Holiday Active"
                                         zone_state = 0
     		                # end holidays
-                                elif away_status == 1 and away_sch == 0: # end away = 0
+                                elif away_status == 1 and sch_status == 0: # end away = 0
                                     zone_status = 0
                                     zone_mode = 90
                                     stop_cause = "Away Active"
@@ -1648,7 +1615,7 @@ try:
                                     zone_mode = 141
                                     add_on_start_cause = "Manual Start";
                                     zone_state = 1
-                            elif away_status == 1 or (away_status == 1 and away_sch == 1):
+                            elif away_status == 1 or (away_status == 1 and sch_status == 1):
                                 if holidays_status == 0 or sch_holidays == 1:
                                     if sch_active and zone_override_status == 1:
                                         zone_status = 0
@@ -1695,7 +1662,7 @@ try:
                                     zone_mode = 40
                                     add_on_stop_cause = "Holiday Active"
                                     zone_state = 0
-                            elif away_status == 1 and away_sch == 0:
+                            elif away_status == 1 and sch_status == 0:
                                 zone_status = 0
                                 zone_mode = 90
                                 add_on_stop_cause = "Away Active"
@@ -1709,7 +1676,7 @@ try:
     		#process Zone Category 2 Switch type zone
                     elif zone_category == 2:
                         if sc_mode != 0:
-                            if away_status == 1 and away_sch == 0:
+                            if away_status == 1 and sch_status == 0:
                                 zone_status = 0
                                 zone_mode = 90
                                 zone_state = 0
@@ -1797,7 +1764,7 @@ try:
                                 add_on_stop_cause = "Frost Protection Deadband"
                                 zone_state = zone_status_prev
                             elif frost_active == 0 and zone_c < zone_max_c:
-                                if away_status == 0 or (away_status == 1 and away_sch == 1):
+                                if away_status == 0 or (away_status == 1 and sch_status == 1):
                                     if holidays_status == 0 or sch_holidays == 1:
                                         if zone_maintain_default == 1 and sch_status == 0:
                                             if zone_c < temp_cut_out_rising:
@@ -1911,7 +1878,7 @@ try:
                                         zone_mode = 40
                                         add_on_stop_cause = "Holiday Active"
                                         zone_state = 0
-                                elif away_status == 1 and away_sch == 0:
+                                elif away_status == 1 and sch_status == 0:
                                     zone_status = 0
                                     zone_mode = 90
                                     add_on_stop_cause = "Away Active"
@@ -1931,7 +1898,7 @@ try:
                     #----------------------------------------------------------------------
                     elif zone_category == 5 and sensor_type_id != 3:
                         if sc_mode != 0:
-                            if away_status == 0 or (away_status == 1 and away_sch == 1):
+                            if away_status == 0 or (away_status == 1 and sch_status == 1):
                                 if holidays_status == 0 or sch_holidays == 1:
                                     if zone_maintain_default == 1 and sch_status == 0:
                                         if zone_c > temp_cut_out_falling:
@@ -2042,7 +2009,7 @@ try:
                                     zone_mode = 40
                                     add_on_stop_cause = "Holiday Active"
                                     zone_state = 0
-                            elif away_status == 1 and away_sch == 0:
+                            elif away_status == 1 and sch_status == 0:
                                 zone_status = 0
                                 zone_mode = 90
                                 add_on_stop_cause = "Away Active"
@@ -2069,9 +2036,8 @@ try:
                     print("sch_status " + str(sch_status) + ", zone_state " + str(zone_state) + ", boost_status " + str(boost_status) + ", override_status " + str(zone_override_status) + ", zone_mode_current " + str(zone_mode_current) + ", zone_status_prev " + str(zone_status_prev), ", hysteresis_status " + str(hysteresis))
 
                 #Update the individual zone controller states for controllers associated with this zone
-                for key in controllers_dict:
-                    if key == zone_id:
-                        controllers_dict[key]["zone_controller_state"] = zone_state
+                for zc_id in controllers_dict[zone_id]:
+                    controllers_dict[zone_id][zc_id ]["zone_controller_state"] = zone_state 
 
                 #Update temperature values fore zone current status table (frost protection and overtemperature)
                 if floor(zone_mode/10) == 2:
@@ -2173,16 +2139,15 @@ try:
                             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut In Temperature        " + bc.red + str(temp_cut_out_falling) + bc.ENDC)
                         print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Cut Out Temperature       " + bc.red + str(temp_cut_out) + bc.ENDC)
 
-                for key in controllers_dict:
-                    if key == zone_id:
-                        zone_controler_id = controllers_dict[key]["controler_id"]
-                        zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                        if controllers_dict[key]["relay_type_id"] == 5:
-                            zp = "Pump"
-                        else:
-                            zp = "Zone"
-                        if dbgLevel >= 2:
-                            print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Controller: " + bc.red + str(zone_controler_id) + bc.ENDC + " Controller Child: " + bc.red + str(zone_controler_child_id) + bc.ENDC + " Status: " + bc.red + str(zone_status) + bc.ENDC)
+                for key in controllers_dict[zone_id]:
+                    zone_controler_id = controllers_dict[zone_id][key]["controler_id"]
+                    zone_controler_child_id = controllers_dict[zone_id][key]["controler_child_id"]
+                    if controllers_dict[zone_id][key]["relay_type_id"] == 5:
+                        zp = "Pump"
+                    else:
+                        zp = "Zone"
+                    if dbgLevel >= 2:
+                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: " + str(zone_name) + " Controller: " + bc.red + str(zone_controler_id) + bc.ENDC + " Controller Child: " + bc.red + str(zone_controler_child_id) + bc.ENDC + " Status: " + bc.red + str(zone_status) + bc.ENDC)
 
                 if zone_category == 0 or zone_category == 3 or zone_category == 4:
                     if zone_status == 1:
@@ -2213,7 +2178,7 @@ try:
 
                 #Pass data to zone commands loop
                 zone_commands_dict[command_index] = {}
-                zone_commands_dict[command_index]["controllers"] = controllers_dict
+                zone_commands_dict[command_index]["controllers"] = controllers_dict[zone_id]
                 zone_commands_dict[command_index]["zone_id"] = zone_id
                 zone_commands_dict[command_index]["zone_name"] = zone_name
                 zone_commands_dict[command_index]["zone_category"] = zone_category
@@ -2378,99 +2343,98 @@ try:
                     zone_command = 0
 
                 #process all the zone relays associated with this zone
-                for key in controllers_dict:
-                    if key == zone_id:
-                        zc_id = controllers_dict[key]["zc_id"]
-                        zone_controler_id = controllers_dict[key]["controler_id"]
-                        zone_controler_child_id = controllers_dict[key]["controler_child_id"]
-                        controller_relay_id = controllers_dict[key]["controller_relay_id"]
-                        zone_relay_type_id = controllers_dict[key]["relay_type_id"]
-                        zone_on_trigger = controllers_dict[key]["controler_on_trigger"]
-                        zone_controller_type = controllers_dict[key]["zone_controller_type"]
-                        manual_button_override = controllers_dict[key]["manual_button_override"]
-                        zone_controller_state = controllers_dict[key]["zone_controller_state"]
-                        if zone_controller_state == 1 or zone_overrun == 1:
-                            zone_command = 1
-                        else:
-                            zone_command = 0
-                        if zone_on_trigger == 1:
-                            relay_on = '1' #GPIO value to write to turn on attached relay
-                            relay_off = '0' # GPIO value to write to turn off attached relay
-                        else:
-                            relay_on = '0' #GPIO value to write to turn on attached relay
-                            relay_off = '1' #GPIO value to write to turn off attached relay
-                        if dbgLevel == 1:
-                            print("zone_controler_id " + str(zone_controler_id) + ", zone_controler_child_id " + str(zone_controler_child_id) + ", zone_controller_state " + str(zone_controller_state) + ", manual_button_override " + str(manual_button_override))
-                            print("relay_type_id - " + str(zone_relay_type_id))
-                            print("zone_overrun - " + str(zone_overrun) + ", manual_button_override - " + str(manual_button_override) + ", zone_command - " + str(zone_command) + ", zone_status_prev - " + str(zone_status_prev))
-        #               if (($manual_button_override == 0) || ($manual_button_override == 1 && $zone_command == 0)) {
-                        #process zone relays
-                        if zone_relay_type_id == 0:
-                            if (manual_button_override == 0 or (manual_button_override == 1 and zone_command == 0)) and (zone_command != zone_status_prev or zone_controller_type == 'MySensor'):
-                                #***************************************************************************************
-                                # Zone Valve Wired to Raspberry Pi GPIO Section: Zone Valve Connected Raspberry Pi GPIO.
-                                #****************************************************************************************
-                                if 'GPIO' in zone_controller_type:
-                                    if zone_command == 1:
-                                        relay_status = relay_on
-                                    else:
-                                        relay_status = relay_off
-                                    if dbgLevel == 1:
-                                        print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: GIOP Relay Status: " + bc.red + str(relay_status) + bc.ENDC + " (" + str(relay_on) + "=On, " + str(relay_off) + "=Off)")
-                                    cur.execute(
-                                        "UPDATE messages_out SET sent = '0', payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                        [str(zone_command), zone_controler_id, zone_controler_child_id],
-                                    )
-                                    con.commit()  # commit above
+                for key in controllers_dict[zone_id]:
+                    zc_id = key
+                    zone_controler_id = controllers_dict[zone_id][key]["controler_id"]
+                    zone_controler_child_id = controllers_dict[zone_id][key]["controler_child_id"]
+                    controller_relay_id = controllers_dict[zone_id][key]["controller_relay_id"]
+                    zone_relay_type_id = controllers_dict[zone_id][key]["relay_type_id"]
+                    zone_on_trigger = controllers_dict[zone_id][key]["controler_on_trigger"]
+                    zone_controller_type = controllers_dict[zone_id][key]["zone_controller_type"]
+                    manual_button_override = controllers_dict[zone_id][key]["manual_button_override"]
+                    zone_controller_state = controllers_dict[zone_id][key]["zone_controller_state"]
+                    if zone_controller_state == 1 or zone_overrun == 1:
+                        zone_command = 1
+                    else:
+                        zone_command = 0
+                    if zone_on_trigger == 1:
+                        relay_on = '1' #GPIO value to write to turn on attached relay
+                        relay_off = '0' # GPIO value to write to turn off attached relay
+                    else:
+                        relay_on = '0' #GPIO value to write to turn on attached relay
+                        relay_off = '1' #GPIO value to write to turn off attached relay
+                    if dbgLevel == 1:
+                        print("zone_controler_id " + str(zone_controler_id) + ", zone_controler_child_id " + str(zone_controler_child_id) + ", zone_controller_state " + str(zone_controller_state) + ", manual_button_override " + str(manual_button_override))
+                        print("relay_type_id - " + str(zone_relay_type_id))
+                        print("zone_overrun - " + str(zone_overrun) + ", manual_button_override - " + str(manual_button_override) + ", zone_command - " + str(zone_command) + ", zone_status_prev - " + str(zone_status_prev))
+        #           if (($manual_button_override == 0) || ($manual_button_override == 1 && $zone_command == 0)) {
+                    #process zone relays
+                    if zone_relay_type_id == 0:
+                        if (manual_button_override == 0 or (manual_button_override == 1 and zone_command == 0)) and (zone_command != zone_status_prev or zone_controller_type == 'MySensor'):
+                            #***************************************************************************************
+                            # Zone Valve Wired to Raspberry Pi GPIO Section: Zone Valve Connected Raspberry Pi GPIO.
+                            #****************************************************************************************
+                            if 'GPIO' in zone_controller_type:
+                                if zone_command == 1:
+                                    relay_status = relay_on
+                                else:
+                                    relay_status = relay_off
+                                if dbgLevel == 1:
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: GIOP Relay Status: " + bc.red + str(relay_status) + bc.ENDC + " (" + str(relay_on) + "=On, " + str(relay_off) + "=Off)")
+                                cur.execute(
+                                    "UPDATE messages_out SET sent = '0', payload = %s WHERE node_id = %s AND child_id = %s LIMIT 1;",
+                                    [str(zone_command), zone_controler_id, zone_controler_child_id],
+                                )
+                                con.commit()  # commit above
 
-                                #***************************************************************************************
-                                # Zone Valve Wired over I2C Interface Make sure you have i2c Interface enabled
-        	       	        #****************************************************************************************
-                                if 'I2C' in zone_controller_type:
-                                    subprocess.call("/var/www/cron/i2c/i2c_relay.py " + zone_controler_id + " " + zone_controler_child_id + " " + str(zone_command), shell=True)
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Relay Board: " + zone_controler_id + " Relay No: "  + zone_controler_child_id + " Status: " + str(zone_command))
+                            #***************************************************************************************
+                            # Zone Valve Wired over I2C Interface Make sure you have i2c Interface enabled
+        	            #****************************************************************************************
+                            if 'I2C' in zone_controller_type:
+                                subprocess.call("/var/www/cron/i2c/i2c_relay.py " + zone_controler_id + " " + zone_controler_child_id + " " + str(zone_command), shell=True)
+                                print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Zone: Relay Board: " + zone_controler_id + " Relay No: "  + zone_controler_child_id + " Status: " + str(zone_command))
 
-                                #***************************************************************************************
-                                # Zone Valve Wireless Section: MySensors Wireless or MQTT Relay module for your Zone Valve control.
-                                #****************************************************************************************
-                                if 'MySensor'  in zone_controller_type or 'MQTT' in zone_controller_type:
+                            #***************************************************************************************
+                            # Zone Valve Wireless Section: MySensors Wireless or MQTT Relay module for your Zone Valve control.
+                            #****************************************************************************************
+                            if 'MySensor'  in zone_controller_type or 'MQTT' in zone_controller_type:
+                                cur.execute(
+                                    "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
+                                    [str(zone_command), zone_controler_id, zone_controler_child_id],
+                                )
+                                con.commit()  # commit above
+
+                            #************************************************************************************
+                            # Sonoff Switch Section: Tasmota WiFi Relay module for your Zone control.
+                            #*************************************************************************************
+                            if 'Tasmota' in zone_controller_type:
+                                cur.execute(
+                                    "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = %s LIMIT 1;",
+                                    (zone_id, zone_command),
+                                )
+                                if cur.rowcount > 0:
+                                    http = cur.fetchone()
+                                    http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                    add_on_msg = http[http_to_index["command"]] + " " + http[http_to_index["parameter"]]
                                     cur.execute(
                                         "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
-                                        [str(zone_command), zone_controler_id, zone_controler_child_id],
+                                        [add_on_msg, zone_controler_id, zone_controler_child_id],
                                     )
                                     con.commit()  # commit above
 
-                                #************************************************************************************
-                                # Sonoff Switch Section: Tasmota WiFi Relay module for your Zone control.
-                                #*************************************************************************************
-                                if 'Tasmota' in zone_controller_type:
-                                    cur.execute(
-                                        "SELECT * FROM http_messages WHERE zone_id = %s AND message_type = %s LIMIT 1;",
-                                        (zone_id, zone_command),
-                                    )
-                                    if cur.rowcount > 0:
-                                        http = cur.fetchone()
-                                        http_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                        add_on_msg = http[http_to_index["command"]] + " " + http[http_to_index["parameter"]]
-                                        cur.execute(
-                                            "UPDATE `messages_out` set sent = 0, payload = %s  WHERE node_id = %s AND child_id = %s;",
-                                            [add_on_msg, zone_controler_id, zone_controler_child_id],
-                                        )
+                                    if zone_category != 3:
+                                        if zone_override_status == 0:
+                                            cur.execute(
+                                                "UPDATE zone_relays SET state = %s, current_state = %s WHERE id = %s LIMIT 1;",
+                                                [zone_command, zone_command, zc_id],
+                                            )
                                         con.commit()  # commit above
-
-                                        if zone_category != 3:
-                                            if zone_override_status == 0:
-                                                cur.execute(
-                                                    "UPDATE zone_relays SET state = %s, current_state = %s WHERE id = %s LIMIT 1;",
-                                                    [zone_command, zone_command, zc_id],
-                                                )
-                                            con.commit()  # commit above
-                                #end if ($manual_button_override ==
-                        elif zone_relay_type_id == 5: #end if ($zone_relay_type_id == 0)
-                            if not pump_relays_dict: #add first pump type relay
-                                pump_relays_dict[controller_relay_id] = zone_command
-                            elif controller_relay_id in pump_relays_dict and zone_command == 1:
-                                pump_relays_dict[controller_relay_id] = zone_command
+                            #end if ($manual_button_override ==
+                    elif zone_relay_type_id == 5: #end if ($zone_relay_type_id == 0)
+                        if not pump_relays_dict: #add first pump type relay
+                            pump_relays_dict[controller_relay_id] = zone_command
+                        elif controller_relay_id in pump_relays_dict and zone_command == 1:
+                            pump_relays_dict[controller_relay_id] = zone_command
 
                 #end for ($crow = 0; $crow < count($controllers); $crow++)
             #end for ($row = 0; $row < count($zone_commands); $row++)
