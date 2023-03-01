@@ -277,7 +277,7 @@ def get_schedule_status(
             if (end_time > start_time and int_time_stamp > start_time and int_time_stamp < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and int_time_stamp < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and int_time_stamp > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == 1:
                 sch_status = 1
                 break #exit the loop if an active schedule found
-            else: 
+            else:
                 sch_status = 0;
         #end for s in sch: loop
     else:
@@ -347,6 +347,8 @@ try:
 
         con = mdb.connect(dbhost, dbuser, dbpass, dbname)
         cur = con.cursor()
+
+        # initialise system variables
         cur.execute("SELECT * FROM system LIMIT 1")
         row = cur.fetchone()
         system_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
@@ -667,8 +669,8 @@ try:
             )
             if cur.rowcount == 0:
                 cur.execute(
-                    "INSERT INTO zone_current_state (id, `sync`, `purge`, `zone_id`, `mode`, `status`, `temp_reading`, `temp_target`, `temp_cut_in`, `temp_cut_out`, `controler_fault`, `controler_seen_time`, `sensor_fault`, `sensor_seen_time`, `sensor_reading_time`, `overrun`) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, None, 0, 0, None),
+                    "INSERT INTO zone_current_state (id, `sync`, `purge`, `zone_id`, `mode`, `status`, `status_prev`, `temp_reading`, `temp_target`, `temp_cut_in`, `temp_cut_out`, `controler_fault`, `controler_seen_time`, `sensor_fault`, `sensor_seen_time`, `sensor_reading_time`, `overrun`) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
+                    (zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, 0, None, 0, 0, None),
                 )
                 con.commit()
 
@@ -680,7 +682,8 @@ try:
             if cur.rowcount > 0:
                 zone_current_state = cur.fetchone()
                 zone_current_state_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                zone_status_prev = zone_current_state[zone_current_state_to_index["status"]]
+                zone_status_current = zone_current_state[zone_current_state_to_index["status"]]
+                zone_status_prev = zone_current_state[zone_current_state_to_index["status_prev"]]
                 zone_overrun_prev = zone_current_state[zone_current_state_to_index["overrun"]]
                 zone_mode_current = zone_current_state[zone_current_state_to_index["mode"]]
 
@@ -818,6 +821,7 @@ try:
                     for key in controllers_dict[zone_id]:
                         zone_controler_id = controllers_dict[zone_id][key]["controler_id"]
                         zone_controler_child_id = controllers_dict[zone_id][key]["controler_child_id"]
+                        zone_controller_type = controllers_dict[zone_id][key]["zone_controller_type"]
                         zone_fault = 0
                         zone_ctr_fault = 0
                         zone_sensor_fault = 0
@@ -830,7 +834,6 @@ try:
                         if cur.rowcount > 0:
                             node = cur.fetchone()
                             node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            controler_type = node[node_to_index["type"]]
                             controler_seen_time = node[node_to_index["last_seen"]]
                             controler_notice = node[node_to_index["notice_interval"]]
                             if controler_notice > 0:
@@ -843,6 +846,8 @@ try:
                         #if add-on controller then process state change from GUI or api call
                         if zone_category == 2:
                             current_state = zone_status_prev;
+                            if dbgLevel == 1:
+                                print("current_state",current_state)
                             add_on_state = controllers_dict[zone_id][key]["zone_controller_state"]
                             zone_controler_child_id = controllers_dict[zone_id][key]["controler_child_id"]
                             if zone_mode_current == 74 or zone_mode_current == 75:
@@ -863,7 +868,7 @@ try:
 
                             #check is switch has manually changed the ON/OFF state
                             #for zones with multiple controllers - only capture the first change
-                            if 'Tasmota' in controler_type and manual_button_override == 0:
+                            if 'Tasmota' in zone_controller_type and manual_button_override == 0:
                                 if base_addr == '000.000.000.000':
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - NO Gateway Address is Set")
                                 else:
@@ -882,12 +887,16 @@ try:
                                         try:
                                             x = requests.post(url, data=myobj)  # send request to Sonoff device
                                             if x.status_code == 200:
+                                                if dbgLevel == 1:
+                                                    print("Tasmota State: ",x.json().get(cmd))
                                                 if x.json().get(cmd) == param:
                                                     new_add_on_state = 1
                                                 else:
                                                     new_add_on_state = 0
                                                 if manual_button_override == 0 and current_state != new_add_on_state:
                                                     manual_button_override = 1
+                                            else:
+                                                manual_button_override = 0
                                         except:
                                             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Unable to communicate with: %s" % url[0:-3])
                     #end for key in controllers_dict[zone_id]:
@@ -895,6 +904,7 @@ try:
                     #if there has been an external update to any of the relays associated with this zone (both Tasmota and MySensor), then update MaxAir to capture the new state
                     #will update the following tables - messages_out, zone, zone_relays, zone_current state and override
                     #the Home screen will be updated once this script has executed
+                    manual_button_override = 0 ################ need to capture multiple buttons for zones with more than 1 controller
                     if manual_button_override == 1:
                         add_on_state = new_add_on_state
                         zone_c = new_add_on_state
@@ -917,9 +927,9 @@ try:
                                     node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                                     if 'Tasmota' in node[node_to_index['type']]:
                                         if add_on_state == 0:
-                                            message_type="0"
+                                            message_type = "0"
                                         else:
-                                            message_type="1"
+                                            message_type = "1"
                                         cur.execute(
                                             "SELECT  command, parameter FROM http_messages WHERE node_id = %s AND message_type = %s LIMIT 1;",
                                             (node_id, message_type),
@@ -957,8 +967,8 @@ try:
                                 else:
                                     mode = 74
                             cur.execute(
-                                "UPDATE zone_current_state SET mode  = %s, status = %s WHERE zone_id = %s;",
-                                [mode, set, zone_id],
+                                "UPDATE zone_current_state SET mode  = %s, status = %s , status_prev = %s WHERE zone_id = %s;",
+                                [mode, set, zone_status_current, zone_id],
                             )
                             con.commit()  # commit above
                             cur.execute(
@@ -1228,7 +1238,7 @@ try:
                     active_sc_mode = 1
                 else:
                     active_sc_mode = sc_mode
-                #check no zone fault and if not a switch zone (cat 2) that there is a valid zone sensor reading 
+                #check no zone fault and if not a switch zone (cat 2) that there is a valid zone sensor reading
                 if zone_fault == 0 and (zone_c is not None or zone_category == 2):
 
                     if dbgLevel == 1:
@@ -1454,7 +1464,7 @@ try:
                                                         stop_cause = "HVAC Climate C Reached "
                                                         zone_state = 0
                                                         hvac_state = 0
-                                            elif active_sc_mode == 3: # TIMER mode AUTO 
+                                            elif active_sc_mode == 3: # TIMER mode AUTO
                                                 if sch_status == 1:
                                                     if zone_c <= temp_cut_out_rising:
                                                         zone_status = 1
@@ -1693,7 +1703,7 @@ try:
                                 add_on_stop_cause = "Boost Finished"
                             elif zone_state_current == 0 and zone_override_status == 0 and zone_status_prev == 1:
                                 zone_status = 0
-                                zone_mode = 0
+                                zone_mode = 115
                                 zone_state = 0
                                 add_on_stop_cause = "Manual Stop"
                             elif sch_status == 0 and zone_state_current == 0 and boost_status == 0:
@@ -1702,6 +1712,7 @@ try:
                                 zone_state = 0
                                 add_on_stop_cause = "No Schedule"
                             elif sch_status == 1:
+#                                zone_override_status = 0
                                 if zone_override_status == 0:
                                     zone_status = 1
                                     zone_mode = 111
@@ -2037,7 +2048,7 @@ try:
 
                 #Update the individual zone controller states for controllers associated with this zone
                 for zc_id in controllers_dict[zone_id]:
-                    controllers_dict[zone_id][zc_id ]["zone_controller_state"] = zone_state 
+                    controllers_dict[zone_id][zc_id ]["zone_controller_state"] = zone_state
 
                 #Update temperature values fore zone current status table (frost protection and overtemperature)
                 if floor(zone_mode/10) == 2:
@@ -2092,26 +2103,26 @@ try:
 
                 if zone_category == 3 and zone_c is not None:
                     cur.execute(
-                        """UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, temp_reading = %s, temp_target = %s, temp_cut_in = %s, temp_cut_out = %s,
+                        """UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, status_prev = %s, temp_reading = %s, temp_target = %s, temp_cut_in = %s, temp_cut_out = %s,
                         controler_fault = %s, sensor_fault  = %s, sensor_seen_time = %s, sensor_reading_time = %s WHERE zone_id = %s LIMIT 1;""",
-                        [zone_mode, zone_status, zone_c, target_c, temp_cut_out_rising, temp_cut_out, zone_ctr_fault, zone_sensor_fault, sensor_seen_time, temp_reading_time, zone_id],
+                        [zone_mode, zone_status, zone_status_current, zone_c, target_c, temp_cut_out_rising, temp_cut_out, zone_ctr_fault, zone_sensor_fault, sensor_seen_time, temp_reading_time, zone_id],
                     )
                 elif zone_category == 2:
                     cur.execute(
-                        "UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, controler_fault = %s, controler_seen_time = %s WHERE zone_id = %s LIMIT 1;",
-                        [zone_mode, zone_status, zone_ctr_fault, controler_seen_time, zone_id],
+                        "UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, status_prev = %s, controler_fault = %s, controler_seen_time = %s WHERE zone_id = %s LIMIT 1;",
+                        [zone_mode, zone_status, zone_status_current, zone_ctr_fault, controler_seen_time, zone_id],
                     )
                 elif zone_category == 1 and zone_c is not None:
                     cur.execute(
-                        """UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, temp_reading = %s, temp_target = %s, controler_fault = %s, controler_seen_time = %s,
+                        """UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, status_prev = %s, temp_reading = %s, temp_target = %s, controler_fault = %s, controler_seen_time = %s,
                         sensor_fault  = %s, sensor_seen_time = %s, sensor_reading_time = %s WHERE zone_id = %s LIMIT 1;""",
-                        [zone_mode, zone_status, zone_c, target_c, zone_ctr_fault, controler_seen_time, zone_sensor_fault, sensor_seen_time, temp_reading_time, zone_id],
+                        [zone_mode, zone_status, zone_status_current, zone_c, target_c, zone_ctr_fault, controler_seen_time, zone_sensor_fault, sensor_seen_time, temp_reading_time, zone_id],
                     )
                 elif zone_c is not None:
                     cur.execute(
-                        """UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, temp_reading = %s, temp_target = %s, temp_cut_in = %s, temp_cut_out = %s,
+                        """UPDATE zone_current_state SET `sync` = 0, mode = %s, status = %s, status_prev = %s, temp_reading = %s, temp_target = %s, temp_cut_in = %s, temp_cut_out = %s,
                         controler_fault = %s, controler_seen_time = %s, sensor_fault  = %s, sensor_seen_time = %s, sensor_reading_time = %s WHERE zone_id = %s LIMIT 1;""",
-                        [zone_mode, zone_status, zone_c, target_c, temp_cut_in, temp_cut_out, zone_ctr_fault, controler_seen_time, zone_sensor_fault, sensor_seen_time, temp_reading_time, zone_id],
+                        [zone_mode, zone_status, zone_status_current, zone_c, target_c, temp_cut_in, temp_cut_out, zone_ctr_fault, controler_seen_time, zone_sensor_fault, sensor_seen_time, temp_reading_time, zone_id],
                     )
                 con.commit()  # commit above
 
@@ -2210,16 +2221,16 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
                             if zone_mode == 114 or zone_mode == 21 or  zone_mode == 10:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,zone_id,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,add_on_expected_end_date_time)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,zone_id,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,add_on_expected_end_date_time)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
@@ -2229,13 +2240,12 @@ try:
                                 if dbgLevel >= 2:
                                     print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
                         elif zone_status_prev == 0 and  (zone_status == 1 or zone_state  == 1):
-                            print(zone_mode)
                             if zone_mode == 114 or zone_mode == 21 or  zone_mode == 10 or  zone_mode == 141:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},{});""".format(0,0,zone_id,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,NULL)
                             else:
                                 qry_str = """INSERT INTO `add_on_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
-                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,add_on_expected_end_date_time)
+                                          `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,zone_id,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),add_on_start_cause,NULL,NULL,add_on_expected_end_date_time)
                             try:
                                 cur.execute(qry_str)
                                 con.commit()
@@ -2253,10 +2263,10 @@ try:
                                 )
                                 con.commit()  # commit above
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table updated Successfully.")
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table updated Successfully.")
                             except:
                                 if dbgLevel >= 2:
-                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " -   Add-On Log table update failed.")
+                                    print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Add-On Log table update failed.")
                     #end process Zone Cat 1 and 2 logs
                 if dbgLevel >= 2:
                     print("-" * line_len)
@@ -2321,8 +2331,8 @@ try:
                     if zone_overrun == 1:
                         #zone status needs to be 1 when in overrun mode
                         cur.execute(
-                            "UPDATE zone_current_state SET status = 1 WHERE id =%s LIMIT 1;",
-                            [zone_id,],
+                            "UPDATE zone_current_state SET status = 1, status_prev = %s  WHERE id =%s LIMIT 1;",
+                            [zone_status_current, zone_id],
                         )
                         con.commit()  # commit above
                         if dbgLevel >= 2:
@@ -2651,7 +2661,7 @@ try:
                         #insert date and time into Log table so we can record system controller start date and time.
                         if zone_log_dict[key] == 1:
                             if expected_end_date_time is not None:
-                                qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`, 
+                                qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
                                           `expected_end_date_time`) VALUES ({}, {}, {}, '{}', '{}', {}, {},'{}');""".format(0,0,key,time_stamp.strftime("%Y-%m-%d %H:%M:%S"),start_cause,NULL,NULL,expected_end_date_time)
                             else:
                                 qry_str = """INSERT INTO `controller_zone_logs`(`sync`, `purge`, `zone_id`, `start_datetime`, `start_cause`, `stop_datetime`, `stop_cause`,
