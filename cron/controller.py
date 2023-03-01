@@ -761,11 +761,14 @@ try:
                                     #use the lowest value if multiple values
                                     if zone_frost_temp < frost_target_c:
                                         frost_target_c = zone_frost_temp
-                                if dbgLevel == 1:
-                                    print("Sensor Name - " + zone_sensor_name + ", Frost Target Temperture - " + str(frost_target_c) + ", Frost Sensor Temperature - " + str(frost_sensor_c))
+                            else:
+                                frost_active = 0
+                            if dbgLevel == 1:
+                                print("Sensor Name - " + zone_sensor_name + ", Frost Target Temperture - " + str(frost_target_c) + ", Frost Sensor Temperature - " + str(frost_sensor_c))
                         else:
                             zone_c = None;
                             temp_reading_time = None;
+                            frost_active = 0
             else:
                 zone_frost_controller = 0
 
