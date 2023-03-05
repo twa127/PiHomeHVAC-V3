@@ -670,7 +670,7 @@ try:
             if cur.rowcount == 0:
                 cur.execute(
                     "INSERT INTO zone_current_state (id, `sync`, `purge`, `zone_id`, `mode`, `status`, `status_prev`, `temp_reading`, `temp_target`, `temp_cut_in`, `temp_cut_out`, `controler_fault`, `controler_seen_time`, `sensor_fault`, `sensor_seen_time`, `sensor_reading_time`, `overrun`) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                    (zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, None, 0,  None,  None, 0),                )
+                    (zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, None, 0,  None,  None, 0),
                 )
                 con.commit()
 
