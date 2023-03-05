@@ -670,7 +670,9 @@ try:
             if cur.rowcount == 0:
                 qry_str = """INSERT INTO `zone_current_state`(id, `sync`, `purge`, `zone_id`, `mode`, `status`, `status_prev`, `temp_reading`, `temp_target`, `temp_cut_in`,
                              `temp_cut_out`, `controler_fault`, `controler_seen_time`, `sensor_fault`, `sensor_seen_time`, `sensor_reading_time`, `overrun`)
-                              VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {});""".format(zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, NULL, 0,  NULL,  NULL, 0)
+                              VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {});""".format(
+                              zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, NULL, 0,  NULL,  NULL, 0
+                              )
                 cur.execute(qry_str)
                 con.commit()
 
