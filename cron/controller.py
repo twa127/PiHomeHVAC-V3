@@ -890,7 +890,7 @@ try:
                                         param = "ON"
                                         myobj = {"cmnd": "power"}
                                         try:
-                                            x = requests.post(url, data=myobj)  # send request to Sonoff device
+                                            x = requests.post(url, data=myobj, timeout=1.5)  # send request to Sonoff device
                                             if x.status_code == 200:
                                                 if dbgLevel == 1:
                                                     print("Tasmota State: ",x.json().get(cmd))
