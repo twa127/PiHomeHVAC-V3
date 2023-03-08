@@ -1706,7 +1706,7 @@ try:
                                 zone_mode = 0
                                 zone_state = 0
                                 add_on_stop_cause = "Boost Finished"
-                            elif zone_state_current == 0 and zone_override_status == 0 and zone_status_prev == 1:
+                            elif zone_state_current == 0 and zone_override_status == 0 and zone_status_prev == 1 and zone_mode_current == 114:
                                 zone_status = 0
                                 zone_mode = 115
                                 zone_state = 0
