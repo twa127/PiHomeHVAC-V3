@@ -2075,23 +2075,46 @@ if($what=="auto_image"){
 //Toggle Relay
 if($what=="toggle_relay"){
         if($opp=="update"){
-                $message_out_id =  $_GET['wid'];
-                $update_error=0;
-                if (settings($conn, 'test_mode') == 0) {
-                        $query = "UPDATE system  SET test_mode = 1;";
-                        if(!$conn->query($query)){
-                                $update_error=1;
+                $r_id =  $_GET['wid'];
+                $update_error = 0;
+                $query = "SELECT relay_id, relay_child_id FROM relays WHERE id = {$r_id} LIMIT 1;";
+                $result = $conn->query($query);
+                $row = mysqli_fetch_assoc($result);
+                $relay_id = $row['relay_id'];
+                $relay_child_id = $row['relay_child_id'];
+                $query = "SELECT payload FROM messages_out WHERE n_id = {$relay_id} AND child_id = {$relay_child_id} LIMIT 1;";
+                $result = $conn->query($query);
+                $row = mysqli_fetch_assoc($result);
+                if ($row['payload'] == "0") { $new_state = "1"; } else { $new_state = "0"; }
+                $query = "UPDATE messages_out SET payload = {$new_state}, sent = 0 WHERE n_id = {$relay_id} AND child_id = {$relay_child_id};";
+                if (!$conn->query($query)) { $db_error = 1; }
+                if ($db_error == 0) {
+                        header('Content-type: application/json');
+                        echo json_encode(array('Success'=>'Success','Query'=>$query));
+                        return;
+                } else {
+                        header('Content-type: application/json');
+                        echo json_encode(array('Message'=>'Database query failed.\r\nQuery=' . $query));
+                        return;
+                }
+        }
+        if($opp=="exit"){
+                $relay_map =  $_GET['relay_map'];
+                $db_error = 0;
+                $query = "SELECT relay_id, relay_child_id FROM relays ORDER BY relay_id, relay_child_id DESC;";
+                $results = $conn->query($query);
+                $count = $results->num_rows;
+                if ($count != 0) {
+			$n = 0;
+                	while ($row = mysqli_fetch_assoc($results)) {
+                                $payload = $relay_map & (1 << $n++);
+                        	$query = "UPDATE messages_out SET payload = {$payload}, sent = 0 WHERE n_id = {$row['relay_id']} AND child_id = {$row['relay_child_id']};";
+                                if (!$conn->query($query)) { $db_error = 1; }
                         }
                 }
-                $sel_query = "SELECT payload FROM messages_out WHERE id = {$message_out_id} LIMIT 1;";
-                $result = $conn->query($sel_query);
-                $row = mysqli_fetch_assoc($result);
-                if ($row['payload'] == "0") { $new_state = 1; } else { $new_state = 0; }
-                $query = "UPDATE messages_out SET payload = {$new_state}, sent = 0 WHERE id = {$message_out_id};";
-                if(!$conn->query($query)){
-                        $update_error=1;
-                }
-                if($update_error==0){
+                $query = "UPDATE system  SET test_mode = 0;";
+                if (!$conn->query($query)) { $db_error = 1; }
+                if ($db_error == 0) {
                         header('Content-type: application/json');
                         echo json_encode(array('Success'=>'Success','Query'=>$query));
                         return;
@@ -2101,13 +2124,37 @@ if($what=="toggle_relay"){
                         return;
                 }
         }
-        if($opp=="exit"){
-                $query = "UPDATE system  SET test_mode = 0;";
-                if($conn->query($query)){
+        if($opp=="enter"){
+                $query = "UPDATE system SET test_mode = 1;";
+                $db_error = 0;
+                if(!$conn->query($query)){
+                        $db_error = 1;
+                }
+                $test_mode = 0;
+		while ($test_mode != 2) {
+	                $query = "SELECT test_mode FROM system LIMIT 1;";
+        	        $result = $conn->query($query);
+                	$row = mysqli_fetch_assoc($result);
+	                $test_mode = $row['test_mode'];
+		}
+                if($db_error == 0){
+	                $query = "SELECT relay_id, relay_child_id FROM relays;";
+        	        $results = $conn->query($query);
+	                $count = $results->num_rows;
+        	        if ($count != 0) {
+                	        while ($row = mysqli_fetch_assoc($results)) {
+			                $query = "UPDATE messages_out SET payload = 0, sent = 0 WHERE n_id = {$row['relay_id']} AND child_id = {$row['relay_child_id']};";
+			                if(!$conn->query($query)){
+                        			$db_error = 1;
+					}
+				}
+			}
+		}
+                if ($db_error == 0) {
                         header('Content-type: application/json');
                         echo json_encode(array('Success'=>'Success','Query'=>$query));
                         return;
-                }else{
+                } else {
                         header('Content-type: application/json');
                         echo json_encode(array('Message'=>'Database query failed.\r\nQuery=' . $query));
                         return;
