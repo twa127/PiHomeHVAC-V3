@@ -2986,9 +2986,17 @@ try:
         else: # system in test mode
             print(bc.dtm + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") + bc.ENDC + " - Test Mode, Controller Suspended")
             cur.execute(
-                "UPDATE system  SET test_mode = 2;",
-                )
-            con.commit()  # commit above
+                "SELECT test_mode FROM system LIMIT 1",
+            )
+            if cur.rowcount > 0:
+                test = cur.fetchone()
+                test_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                test_mode = test[test_to_index["test_mode"]]
+                if test_mode == 1:
+                    cur.execute(
+                        "UPDATE system SET test_mode = 2;",
+                    )
+                    con.commit()  # commit above
             time.sleep(1)
 
 except:
