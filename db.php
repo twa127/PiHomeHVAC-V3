@@ -876,7 +876,7 @@ if($what=="add_on"){
         }
         if($opp=="toggle"){
                 if ($da == 0) { $new_state = 1; } else { $new_state = 0; }
-                $query = "SELECT * FROM zone_view where id = '{$wid}';";
+                $query = "SELECT `relays`.`relay_id`, `relays`.`relay_child_id` FROM `relays`, `zone_relays` WHERE (`relays`.`id` = `zone_relays`.`zone_relay_id`) AND `zone_relays`.`zone_id` = '{$wid}';";
                 $results = $conn->query($query);
                 while ($row = mysqli_fetch_assoc($results)) {
                         $relay_id=$row['relay_id'];
