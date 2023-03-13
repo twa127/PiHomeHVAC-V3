@@ -898,16 +898,15 @@ if($what=="add_on"){
                         } else {
                                 $update = 1;
                         }
+                }
+                $query = "UPDATE zone_relays SET state = '{$new_state}' WHERE zone_id = '{$wid}';";
+                if ($conn->query($query)) {
+                        $update_error = 0;
+                } else {
+                        $update_error = 1;
+                }
 
-                        $query = "UPDATE zone_relays SET state = '{$new_state}' WHERE zone_id = '{$wid}';";
-                        if ($conn->query($query)) {
-                                $update_error = 0;
-                        } else {
-                                $update_error = 1;
-                        }
-
-		}
-               	//if switch type zone then force GUI status update
+		//if switch type zone then force GUI status update
                 if ($category == 2) {
 	                if ($sch_active == '0') {
         	                if ($new_state == 0) { $mode = 0; } else { $mode = 114; }
