@@ -879,12 +879,12 @@ if($what=="add_on"){
                 $query = "SELECT `relays`.`relay_id`, `relays`.`relay_child_id` FROM `relays`, `zone_relays` WHERE (`relays`.`id` = `zone_relays`.`zone_relay_id`) AND `zone_relays`.`zone_id` = '{$wid}';";
                 $results = $conn->query($query);
                 while ($row = mysqli_fetch_assoc($results)) {
-                        $relay_id=$row['relay_id'];
-                        $relay_child_id=$row['relay_child_id'];
+                        $relay_id = $row['relay_id'];
+                        $relay_child_id = $row['relay_child_id'];
                         $query = "SELECT node_id, type FROM nodes WHERE id = '{$relay_id}' LIMIT 1;";
                         $result = $conn->query($query);
                         $node = mysqli_fetch_array($result);
-                        $relay_node_id=$node['node_id'];
+                        $relay_node_id = $node['node_id'];
                         $type = $node['type'];
                         if (strpos($type, 'Tasmota') !== false) {
                                 if ($new_state == 0) { $http_status = "Power OFF"; } else { $http_status = "Power ON"; }
