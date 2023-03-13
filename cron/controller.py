@@ -184,19 +184,37 @@ def get_schedule_status(
         sch_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
         for s in sch:
             #check each schedule for this zone
+            time_now = int_time_stamp
+            midnight = time_stamp.replace(hour=0, minute=0, second=0, microsecond=0)
+            seconds_since_midnight = (time_stamp - midnight).seconds
             time_id = s[sch_to_index["time_id"]]
-            start_time = today_date + ", " + str(s[sch_to_index["start"]])
+            WeekDays = s[sch_to_index["WeekDays"]]
+            start_time = s[sch_to_index["start"]]
+            end_time = s[sch_to_index["end"]]
+            #process case where end time is tomorrow, ie starts day 1 and stops day 2
+            if end_time.total_seconds() < start_time.total_seconds():
+                #time now is day 2
+                if (start_time.total_seconds() - seconds_since_midnight >= 0) and (seconds_since_midnight < end_time.total_seconds()):
+                    WeekDays = WeekDays  & (1 << prev_dow)
+                    start_time = yesterday_date + ", " + str(start_time)
+                    end_time = today_date + ", " + str(end_time)
+                #time now is day 1
+                else:
+                    WeekDays = WeekDays  & (1 << dow)
+                    start_time = today_date + ", " + str(start_time)
+                    end_time = tomorrow_date + ", " + str(end_time)
+            else: #start and stop time on the same day
+                WeekDays = WeekDays  & (1 << dow)
+                start_time = today_date + ", " + str(start_time)
+                end_time = today_date + ", " + str(end_time)
             start_time = time.mktime(datetime.datetime.strptime(start_time, "%d/%m/%Y, %H:%M:%S").timetuple())
             start_sr = s[sch_to_index["start_sr"]]
             start_ss = s[sch_to_index["start_ss"]]
             start_offset = s[sch_to_index["start_offset"]]
-            end_time = s[sch_to_index["end"]]
-            end_time = today_date + ", " + str(s[sch_to_index["end"]])
             end_time = time.mktime(datetime.datetime.strptime(end_time, "%d/%m/%Y, %H:%M:%S").timetuple())
             end_sr = s[sch_to_index["end_sr"]]
             end_ss = s[sch_to_index["end_ss"]]
             end_offset = s[sch_to_index["end_offset"]]
-            WeekDays = s[sch_to_index["WeekDays"]]
             time_status = s[sch_to_index["time_status"]]
             sch_name = s[sch_to_index["sch_name"]]
             #use sunrise/sunset if any flags set
@@ -274,7 +292,7 @@ def get_schedule_status(
                         start_time_temp_offset = 0;
                     start_time = start_time - (start_time_temp_offset * 60)
 
-            if (end_time > start_time and int_time_stamp > start_time and int_time_stamp < end_time and (WeekDays  & (1 << dow)) > 0) or (end_time < start_time and int_time_stamp < end_time and (WeekDays  & (1 << prev_dow)) > 0) or (end_time < start_time and int_time_stamp > start_time and (WeekDays  & (1 << dow)) > 0) and time_status == 1:
+            if time_now > start_time and time_now < end_time and WeekDays  > 0 and time_status == 1:
                 sch_status = 1
                 break #exit the loop if an active schedule found
             else:
@@ -306,6 +324,7 @@ try:
         prev_dow = int((time_stamp + datetime.timedelta(days =- 1)).strftime("%w"))
         today_date = time_stamp.strftime("%d/%m/%Y")
         tomorrow_date = (time_stamp + datetime.timedelta(days = 1)).strftime("%d/%m/%Y")
+        yesterday_date = (time_stamp + datetime.timedelta(days =- 1)).strftime("%d/%m/%Y")
         sensor_seen_time = None
         temp_reading_time = None
         expected_end_date_time = None
