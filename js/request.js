@@ -140,9 +140,7 @@ function toggle_add_on(wid){
     idata+="&wid=" + wid;
     $.get('db.php',idata)
     .done(function(odata){
-        if(odata.Success)
-            reload_page();
-        else
+        if(!odata.Success)
             console.log(odata.Message);
     })
     .fail(function( jqXHR, textStatus, errorThrown ){
