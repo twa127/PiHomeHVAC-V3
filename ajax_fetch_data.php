@@ -94,15 +94,16 @@ if ($type <= 5) {
 	$sensor_seen = $zone_current_state['sensor_seen_time'];
 	$temp_reading_time= $zone_current_state['sensor_reading_time'];
 	$overrun= $zone_current_state['overrun'];
+        $schedule = $zone_current_state['schedule'];
+
+        //get the current zone schedule status
+        $sch_status = $schedule & 0b1;
+        $away_sch = ($schedule >> 1) & 0b1;
+
 	if ($zone_category == 1 || $zone_category == 2  || $zone_category == 5) {
         	if ($zone_current_state['mode'] == 0) { $add_on_active = 0; } else { $add_on_active = 1; }
                 if ($add_on_active == 1 && $zone_category != 5) { $add_on_colour = "green"; } elseif ($add_on_active == 0 || ($add_on_active == 1 && $zone_category == 5)) {$add_on_colour = "black"; }
 	}
-
-        //get the current zone schedule status
-        $rval=get_schedule_status($conn, $zone_id,$holidays_status,$away_status);
-        $sch_status = $rval['sch_status'];
-        $away_sch = $rval['away_sch'];
 
 	//get the sensor id
 	$query = "SELECT * FROM sensors WHERE zone_id = '{$id}' LIMIT 1;";
@@ -154,7 +155,7 @@ if ($type <= 5) {
 		7 - fan running*/
         //get the current zone schedule status
         if ($zone_category == 1 || $zone_category == 2) {
-                if ($sch_status =='1') {
+                if ($sch_status == 1) {
                         $add_on_mode = $zone_mode;
                 } else {
                 	if ($add_on_active == 0) {
@@ -438,9 +439,14 @@ if ($type <= 5) {
 		        if ($rowcount > 0) {
 				while ($zrow = mysqli_fetch_assoc($zresults)) {
 					$zone_id = $zrow['id'];
-                			$rval=get_schedule_status($conn, $zone_id,"0","0");
-		                	$sch_status = $rval['sch_status'];
-                			if ($sch_status == '1') {
+//                			$rval=get_schedule_status($conn, $zone_id,"0","0");
+//		                	$sch_status = $rval['sch_status'];
+                                        $query = "SELECT schedule FROM zone_current_state WHERE zone_id = '{$zone_id}' LIMIT 1;";
+                                        $result = $conn->query($query);
+                                        $zcs = mysqli_fetch_array($result);
+                                        $schedule = $zcs['schedule'];
+                                        $sch_status = $schedule & 0b1;
+                			if ($sch_status == 1) {
 						$query = "SELECT * FROM schedule_time_temp_offset WHERE schedule_daily_time_id = ".$rval['time_id']." AND status = 1 LIMIT 1";
 						$oresult = $conn->query($query);
 						if (mysqli_num_rows($oresult) > 0) {
