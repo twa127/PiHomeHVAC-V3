@@ -112,18 +112,7 @@ if ($type <= 5) {
 	$temperature_sensor_id=$sensor['sensor_id'];
 	$temperature_sensor_child_id=$sensor['sensor_child_id'];
 	$sensor_type_id=$sensor['sensor_type_id'];
-
-	//get the node id
-	$query = "SELECT node_id FROM nodes WHERE id = '{$temperature_sensor_id}' LIMIT 1;";
-	$result = $conn->query($query);
-	$nodes = mysqli_fetch_array($result);
-	$zone_node_id=$nodes['node_id'];
-
-	//query to get temperature from messages_in_view_24h table view
-	$query = "SELECT * FROM messages_in WHERE node_id = '{$zone_node_id}' AND child_id = '{$temperature_sensor_child_id}' ORDER BY id desc LIMIT 1;";
-	$result = $conn->query($query);
-	$sensor = mysqli_fetch_array($result);
-	$zone_c = $sensor['payload'];
+	$zone_c = $sensor['current_val_1'];
 	//Zone Main Mode
 	/*	0 - idle
 		10 - fault
@@ -212,7 +201,10 @@ if ($type <= 5) {
 	//---------------------------
 	//process standalone sensors
 	//---------------------------
-	$query = "SELECT sensors.id, sensors.name, sensors.sensor_child_id, sensors.sensor_type_id,nodes.node_id, nodes.last_seen, nodes.notice_interval FROM sensors, nodes WHERE sensors.id = {$id} AND (nodes.id = sensors.sensor_id) AND sensors.zone_id = 0 AND sensors.show_it = 1 LIMIT 1;";
+	$query = "SELECT sensors.id, sensors.name, sensors.sensor_child_id, sensors.sensor_type_id, sensors.current_val_1, sensors.current_val_2,
+                  nodes.node_id, nodes.last_seen, nodes.notice_interval
+                  FROM sensors, nodes 
+                  WHERE sensors.id = {$id} AND (nodes.id = sensors.sensor_id) AND sensors.zone_id = 0 AND sensors.show_it = 1 LIMIT 1;";
 	$result = $conn->query($query);
 	$row = mysqli_fetch_assoc($result);
 	$sensor_id = $row['id'];
@@ -230,17 +222,19 @@ if ($type <= 5) {
 	}
         //query to get sensor reading from messages_in table
         if ($type == 8) {
-                $query = "SELECT * FROM messages_in WHERE node_id = '{$node_id}' AND child_id = '{$sensor_child_id}' AND sub_type = 1 ORDER BY id desc LIMIT 1;";
+//                $query = "SELECT * FROM messages_in WHERE node_id = '{$node_id}' AND child_id = '{$sensor_child_id}' AND sub_type = 1 ORDER BY id desc LIMIT 1;";
+                $sensor_r = $row['current_val_2'];
         } else {
-                if ($sensor_type_id == 4) {
-                        $query = "SELECT * FROM messages_in WHERE node_id = '{$node_id}' AND child_id = '{$sensor_child_id}' AND sub_type = 0 ORDER BY id desc LIMIT 1;";
-                } else {
-                        $query = "SELECT * FROM messages_in WHERE node_id = '{$node_id}' AND child_id = '{$sensor_child_id}' ORDER BY id desc LIMIT 1;";
-                }
+//                if ($sensor_type_id == 4) {
+//                        $query = "SELECT * FROM messages_in WHERE node_id = '{$node_id}' AND child_id = '{$sensor_child_id}' AND sub_type = 0 ORDER BY id desc LIMIT 1;";
+//                } else {
+//                        $query = "SELECT * FROM messages_in WHERE node_id = '{$node_id}' AND child_id = '{$sensor_child_id}' ORDER BY id desc LIMIT 1;";
+//                }
+                $sensor_r = $row['current_val_1'];
         }
-        $result = $conn->query($query);
-        $sensor = mysqli_fetch_array($result);
-        $sensor_r = $sensor['payload'];
+//        $result = $conn->query($query);
+//        $sensor = mysqli_fetch_array($result);
+//        $sensor_r = $sensor['payload'];
         //-------------------------------
         //process return strings by type
         //-------------------------------

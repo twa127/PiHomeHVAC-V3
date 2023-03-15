@@ -210,8 +210,13 @@ def boiler():
                   try :
                      cursorinsert = cnx.cursor()
                      cursorinsert.execute('INSERT INTO messages_in(`sync`, `purge`, `node_id`, `child_id`, `sub_type`, `payload`) VALUES(%s,%s,%s,%s,%s,%s)', (0,0,node_id,sensor_child_id,position,response))
-                     cursorinsert.close()
                      cnx.commit()
+                     cursorinsert.close()
+                     cursorupdate = cnx.cursor()
+                     query = ("UPDATE `sensors` SET `current_val_" + str(position) + "` = "  + str(response) + " WHERE `id` = " + str(sensor_id) + ";")
+                     cursorupdate.execute(query)
+                     cnx.commit()
+                     cursorupdate.close()
                      last_readings[message] = response
                      last_date_time[message] = date_time
                   except :
@@ -238,8 +243,13 @@ def boiler():
                   try :
                      cursorinsert = cnx.cursor()
                      cursorinsert.execute('INSERT INTO messages_in(`sync`, `purge`, `node_id`, `child_id`, `sub_type`, `payload`) VALUES(%s,%s,%s,%s,%s,%s)', (0,0,node_id,sensor_child_id,position,response))
-                     cursorinsert.close()
                      cnx.commit()
+                     cursorinsert.close()
+                     cursorupdate = cnx.cursor()
+                     query = ("UPDATE `sensors` SET `current_val_" + str(position) + "` = "  + str(response) + " WHERE `id` = " + str(sensor_id) + ";")
+                     cursorupdate.execute(query)
+                     cnx.commit()
+                     cursorupdate.close()
                   except :
                      pass
                   try :

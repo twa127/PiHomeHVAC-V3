@@ -481,13 +481,14 @@ def on_message(client, userdata, message):
                     mqtt_payload = mqtt_payload.get(attribute)
             # Get reading type (continous or on-change)
             cur_mqtt.execute(
-                'SELECT mode, timeout, correction_factor, resolution FROM sensors WHERE sensor_id = %s AND sensor_child_id = %s LIMIT 1;',
+                'SELECT id, mode, timeout, correction_factor, resolution FROM sensors WHERE sensor_id = %s AND sensor_child_id = %s LIMIT 1;',
                 [sensors_id, mqtt_child_sensor_id],
             )
             result = cur_mqtt.fetchone()
             sensor_to_index = dict(
                 (d[0], i) for i, d in enumerate(cur_mqtt.description)
             )
+            sensor_id = result[sensor_to_index["id"]]
             mode = result[sensor_to_index["mode"]]
             sensor_timeout = int(result[sensor_to_index["timeout"]])*60
             tdelta = 0
@@ -495,6 +496,12 @@ def on_message(client, userdata, message):
             resolution = float(result[sensor_to_index["resolution"]])
             correction_factor = float(result[sensor_to_index["correction_factor"]])
             mqtt_payload = mqtt_payload + correction_factor
+            # Update last reading for this sensor
+            cur.execute(
+                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                [mqtt_payload, sensor_id],
+            )
+            con.commit()
             if mode == 1:
                 # Get previous data for this sensorr
                 cur_mqtt.execute(
@@ -1489,7 +1496,7 @@ try:
                         con.commit()
                         # Check if this sensor has a correction factor
                         cur.execute(
-                            "SELECT sensors.mode, sensors.timeout, sensors.correction_factor, sensors.resolution FROM sensors, `nodes` WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s) LIMIT 1;",
+                            "SELECT sensors.id, sensors.mode, sensors.timeout, sensors.correction_factor, sensors.resolution FROM sensors, `nodes` WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s) LIMIT 1;",
                             (node_id, child_sensor_id),
                         )
                         results = cur.fetchone()
@@ -1502,11 +1509,18 @@ try:
                                 + float(results[sensor_to_index["correction_factor"]]),
                                 2,
                             )
+                            sensor_id = results[sensor_to_index["id"]]
                             mode = results[sensor_to_index["mode"]]
                             sensor_timeout = int(results[sensor_to_index["timeout"]])*60
                             tdelta = 0
                             last_message_payload = 0
                             resolution = float(results[sensor_to_index["resolution"]])
+                            # Update last reading for this sensor
+                            cur.execute(
+                                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                                [payload, sensor_id],
+                            )
+                            con.commit()
                             if mode == 1:
                                 # Get previous data for this sensorr
                                 cur.execute(
@@ -1648,7 +1662,9 @@ try:
                         con.commit()
                         # Check is sensor is attached to a zone which is being graphed
                         cur.execute(
-                            "SELECT sensors.id, sensors.zone_id, nodes.node_id, sensors.sensor_child_id, sensors.name, sensors.graph_num FROM sensors, `nodes` WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s)  LIMIT 1;",
+                            """SELECT sensors.id, sensors.zone_id, nodes.node_id, sensors.sensor_child_id, sensors.name, sensors.graph_num
+                               FROM sensors, `nodes`
+                               WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s)  LIMIT 1;""",
                             (node_id, child_sensor_id),
                         )
                         results = cur.fetchone()
@@ -1659,6 +1675,12 @@ try:
                             sensor_id = int(results[sensor_to_index["id"]])
                             sensor_name = results[sensor_to_index["name"]]
                             zone_id = results[sensor_to_index["zone_id"]]
+                            # Update last reading for this sensor
+                            cur.execute(
+                                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                                [payload, sensor_id],
+                            )
+                            con.commit()
                             # type = results[zone_view_to_index['type']]
                             # category = int(results[zone_view_to_index['category']])
                             if dbgLevel >= 2 and dbgMsgIn == 1:
@@ -1748,6 +1770,26 @@ try:
                             [timestamp, node_id],
                         )
                         con.commit()
+                        cur.execute(
+                            """SELECT sensors.id, sensors.zone_id, nodes.node_id, sensors.sensor_child_id, sensors.name, sensors.graph_num
+                               FROM sensors, `nodes`
+                               WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s)  LIMIT 1;""",
+                            (node_id, child_sensor_id),
+                        )
+                        results = cur.fetchone()
+                        if cur.rowcount > 0:
+                            sensor_to_index = dict(
+                                (d[0], i) for i, d in enumerate(cur.description)
+                            )
+                            sensor_id = int(results[sensor_to_index["id"]])
+                            sensor_name = results[sensor_to_index["name"]]
+                            zone_id = results[sensor_to_index["zone_id"]]
+                            # Update last reading for this sensor
+                            cur.execute(
+                                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                                [payload, sensor_id],
+                            )
+                            con.commit()
 
                         # ..::Step Eight::..
                         # Add Battery Voltage Nodes Battery Table
