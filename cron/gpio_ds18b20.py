@@ -145,7 +145,7 @@ def insertDB(IDs, temperature):
                     "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
                     [payload, sensor_id],
                 )
-            con.commit()
+                con.commit()
                 if mode == 1:
                     # Get previous data for this sensorr
                     cur.execute(
