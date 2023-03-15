@@ -488,7 +488,7 @@ def on_message(client, userdata, message):
             sensor_to_index = dict(
                 (d[0], i) for i, d in enumerate(cur_mqtt.description)
             )
-            sensor_id = result[sensor_to_index["id"]]
+            sensor_id = result[sensor_to_index["sensor_id"]]
             mode = result[sensor_to_index["mode"]]
             sensor_timeout = int(result[sensor_to_index["timeout"]])*60
             tdelta = 0
