@@ -498,8 +498,8 @@ def on_message(client, userdata, message):
             mqtt_payload = mqtt_payload + correction_factor
             # Update last reading for this sensor
             cur.execute(
-                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
-                [mqtt_payload, sensor_id],
+                "UPDATE `sensors` SET `current_val_1` = %s WHERE sensor_id = %s AND sensor_child_id = %s",
+                [mqtt_payload, sensor_id, mqtt_child_sensor_id],
             )
             con.commit()
             if mode == 1:
