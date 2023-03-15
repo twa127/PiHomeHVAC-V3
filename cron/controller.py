@@ -252,36 +252,14 @@ def get_schedule_status(
                 low_temp = offset[offset_to_index["low_temperature"]]
                 high_temp = offset[offset_to_index["high_temperature"]]
                 sensors_id = offset[offset_to_index["sensors_id"]]
-                if sensors_id == 0:
-                    node_id = 1
-                    child_id = 0
-                else:
-                    cur.execute(
-                        "SELECT sensor_id, sensor_child_id FROM sensors WHERE id = %s LIMIT 1;",
-                        (sensors_id,),
-                    )
-                    if cur.rowcount > 0:
-                        sensor = cur.fetchone()
-                        sensor_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                        sensor_id = sensor[sensor_to_index["sensor_id"]]
-                        child_id = sensor[sensor_to_index["sensor_child_id"]]
-                        cur.execute(
-                            "SELECT node_id FROM nodes WHERE id = %s LIMIT 1;",
-                            (sensor_id,),
-                        )
-                        if cur.rowcount > 0:
-                            node = cur.fetchone()
-                            node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                            node_id = node[node_to_index["node_id"]]
-
                 cur.execute(
-                    "SELECT payload FROM `messages_in` WHERE `node_id` = %s AND `child_id` = %s ORDER BY `datetime` DESC LIMIT 1;",
-                    (node_id, child_id),
+                    "SELECT current_val_1 FROM sensors WHERE id = %s LIMIT 1;",
+                    (sensors_id,),
                 )
                 if cur.rowcount > 0:
-                    messages_in = cur.fetchone()
-                    messages_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                    outside_temp = messages_in[messages_in_to_index["payload"]]
+                    sensor = cur.fetchone()
+                    sensor_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                    outside_temp = sensor[sensor_to_index["current_val_1"]]
                     if outside_temp >= low_temp and outside_temp <= high_temp:
                         temp_span = high_temp - low_temp
                         step_size = start_time_offset/temp_span
@@ -717,7 +695,8 @@ try:
                 # process if a sensor is attached to this zone
                 if zone_category == 0 or zone_category == 1 or zone_category == 3 or zone_category == 4 or zone_category == 5:
                     cur.execute(
-                        """SELECT zone_sensors.*, sensors.sensor_id, sensors.sensor_child_id, sensors.name, sensors.sensor_type_id, sensors.frost_controller, sensors.frost_temp
+                        """SELECT zone_sensors.*, sensors.sensor_id, sensors.sensor_child_id, sensors.name, sensors.sensor_type_id, sensors.frost_controller,
+                        sensors.frost_temp, sensors.current_val_1
                         FROM  zone_sensors, sensors
                         WHERE (zone_sensors.zone_sensor_id = sensors.id) AND zone_sensors.zone_id = %s LIMIT 1;""",
                         (zone_id,),
@@ -738,6 +717,7 @@ try:
                         zone_frost_controller = sensor[sensor_to_index["frost_controller"]]
                         zone_frost_temp = sensor[sensor_to_index["frost_temp"]]
                         zone_maintain_default = sensor[sensor_to_index["default_m"]]
+                        zone_c = sensor[sensor_to_index["current_val_1"]]
 
                         cur.execute(
                             "SELECT * FROM `nodes` WHERE id = %s AND status IS NOT NULL LIMIT 1",
@@ -748,47 +728,30 @@ try:
                             zone_node_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
                             zone_node_id = zone_node[zone_node_to_index["node_id"]]
                             node_name = zone_node[zone_node_to_index["name"]]
-                            #query to get temperature from messages_in_view_24h table view
-                            cur.execute(
-                                "SELECT * FROM messages_in_view_24h WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                (zone_node_id, zone_sensor_child_id),
-                            )
-                            rowcount = cur.rowcount
-                            if rowcount == 0:
-                                if 'Switch' in node_name:
-                                    cur.execute(
-                                        "SELECT * FROM messages_in WHERE node_id = %s AND child_id = %s LIMIT 1;",
-                                        (zone_node_id, zone_sensor_child_id),
-                                    )
-                                    rowcount = cur.rowcount
-                            if rowcount > 0:
-                                messages_in = cur.fetchone()
-                                messages_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                zone_c = float(messages_in[messages_in_to_index["payload"]])
-                                temp_reading_time = messages_in[messages_in_to_index["datetime"]]
-                                #check frost protection linked to this zone controller
-                                if zone_frost_controller != 0:
-                                    frost_active = 0
-                                    frost_target_c = 99
-                                    frost_sensor_c = zone_c
-                                    if frost_sensor_c < (zone_frost_temp - zone_sp_deadband) and zone_frost_temp != 0:
-                                        frost_active = 1
-                                        #use the lowest value if multiple values
-                                        if zone_frost_temp < frost_target_c:
-                                            frost_target_c = zone_frost_temp
-                                    elif frost_sensor_c >= (frost_target_c - zone_sp_deadband) and frost_sensor_c < frost_target_c:
-                                        frost_active = 2
-                                        #use the lowest value if multiple values
-                                        if zone_frost_temp < frost_target_c:
-                                            frost_target_c = zone_frost_temp
-                                else:
-                                    frost_active = 0
-                                if dbgLevel == 1:
-                                    print("Sensor Name - " + zone_sensor_name + ", Frost Target Temperture - " + str(frost_target_c) + ", Frost Sensor Temperature - " + str(frost_sensor_c))
-                            else:
-                                zone_c = None;
-                                temp_reading_time = None;
+                            temp_reading_time = zone_node[zone_node_to_index["last_seen"]]
+                            #check frost protection linked to this zone controller
+                            if zone_frost_controller != 0:
                                 frost_active = 0
+                                frost_target_c = 99
+                                frost_sensor_c = zone_c
+                                if frost_sensor_c < (zone_frost_temp - zone_sp_deadband) and zone_frost_temp != 0:
+                                    frost_active = 1
+                                    #use the lowest value if multiple values
+                                    if zone_frost_temp < frost_target_c:
+                                        frost_target_c = zone_frost_temp
+                                elif frost_sensor_c >= (frost_target_c - zone_sp_deadband) and frost_sensor_c < frost_target_c:
+                                    frost_active = 2
+                                    #use the lowest value if multiple values
+                                    if zone_frost_temp < frost_target_c:
+                                        frost_target_c = zone_frost_temp
+                            else:
+                                frost_active = 0
+                            if dbgLevel == 1:
+                                print("Sensor Name - " + zone_sensor_name + ", Frost Target Temperture - " + str(frost_target_c) + ", Frost Sensor Temperature - " + str(frost_sensor_c))
+                        else:
+                            zone_c = None;
+                            temp_reading_time = None;
+                            frost_active = 0
                 else:
                     zone_frost_controller = 0
 
@@ -1142,50 +1105,31 @@ try:
                         weather_fact = 0
                         if system_controller_mode == 0 and sc_weather_factoring == 1:
                             if sc_weather_sensor_id == 0:
-                                weather_sensor_node_id = 1
-                                weather_sensor_child_id = 0
+                                weather_sensor_id = 1
                             else:
                                 cur.execute(
-                                    "SELECT sensor_id, sensor_child_id FROM sensors WHERE id = %s LIMIT 1;",
+                                    "SELECT current_val_1 FROM sensors WHERE id = %s LIMIT 1;",
                                     (sc_weather_sensor_id, ),
                                 )
                                 if cur.rowcount > 0:
                                     sensor = cur.fetchonel()
                                     sensor_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                    weather_sensor_id = sensor[sensor_in_to_index['sensor_id']]
-                                    weather_sensor_child_id = sensor[sensor_in_to_index['sensor_child_id']]
-                                    cur.execute(
-                                        "SELECT * FROM nodes WHERE id = %s LIMIT 1;",
-                                        (sc_weather_sensor_id, ),
-                                    )
-                                    if cur.rowcount > 0:
-                                        node = cur.fetchone()
-                                        node_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                        weather_sensor_node_id = node[node_in_to_index['node_id']]
-
-                            cur.execute(
-                                "SELECT * FROM messages_in WHERE node_id = %s AND child_id = %s ORDER BY id desc LIMIT 1;",
-                                (weather_sensor_node_id, weather_sensor_child_id),
-                            )
-                            if cur.rowcount > 0:
-                                messages_in = cur.fetchone()
-                                messages_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                weather_c = messages_in[messages_in_to_index['payload']]
-                                #    1    00-05    0.3
-                                #    2    06-10    0.4
-                                #    3    11-15    0.5
-                                #    4    16-20    0.6
-                                #    5    21-30    0.7
-                                if weather_c <= 5 :
-                                    weather_fact = 0.3
-                                elif weather_c <= 10:
-                                    weather_fact = 0.4
-                                elif weather_c <= 15:
-                                    weather_fact = 0.5
-                                elif weather_c <= 20:
-                                    weather_fact = 0.6
-                                elif weather_c <= 30:
-                                    weather_fact = 0.7
+                                    weather_c = sensor[sensor_in_to_index['current_val_1']]
+                                    #    1    00-05    0.3
+                                    #    2    06-10    0.4
+                                    #    3    11-15    0.5
+                                    #    4    16-20    0.6
+                                    #    5    21-30    0.7
+                                    if weather_c <= 5 :
+                                        weather_fact = 0.3
+                                    elif weather_c <= 10:
+                                        weather_fact = 0.4
+                                    elif weather_c <= 15:
+                                        weather_fact = 0.5
+                                    elif weather_c <= 20:
+                                        weather_fact = 0.6
+                                    elif weather_c <= 30:
+                                        weather_fact = 0.7
 
                         #Following to decide which temperature is target temperature
                         if livetemp_active == 1 and livetemp_zone_id == zone_id:
