@@ -498,7 +498,7 @@ def on_message(client, userdata, message):
             mqtt_payload = mqtt_payload + correction_factor
             # Update last reading for this sensor
             cur.execute(
-                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
                 [mqtt_payload, sensor_id],
             )
             con.commit()
@@ -1517,7 +1517,7 @@ try:
                             resolution = float(results[sensor_to_index["resolution"]])
                             # Update last reading for this sensor
                             cur.execute(
-                                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
                                 [payload, sensor_id],
                             )
                             con.commit()
@@ -1677,7 +1677,7 @@ try:
                             zone_id = results[sensor_to_index["zone_id"]]
                             # Update last reading for this sensor
                             cur.execute(
-                                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
                                 [payload, sensor_id],
                             )
                             con.commit()
@@ -1786,7 +1786,7 @@ try:
                             zone_id = results[sensor_to_index["zone_id"]]
                             # Update last reading for this sensor
                             cur.execute(
-                                "UPDATE `sensors` SET `current_val_1`=%s WHERE id = %s",
+                                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
                                 [payload, sensor_id],
                             )
                             con.commit()
