@@ -481,14 +481,13 @@ def on_message(client, userdata, message):
                     mqtt_payload = mqtt_payload.get(attribute)
             # Get reading type (continous or on-change)
             cur_mqtt.execute(
-                'SELECT id, mode, timeout, correction_factor, resolution FROM sensors WHERE sensor_id = %s AND sensor_child_id = %s LIMIT 1;',
+                'SELECT mode, timeout, correction_factor, resolution FROM sensors WHERE sensor_id = %s AND sensor_child_id = %s LIMIT 1;',
                 [sensors_id, mqtt_child_sensor_id],
             )
             result = cur_mqtt.fetchone()
             sensor_to_index = dict(
                 (d[0], i) for i, d in enumerate(cur_mqtt.description)
             )
-            sensor_id = result[sensor_to_index["sensor_id"]]
             mode = result[sensor_to_index["mode"]]
             sensor_timeout = int(result[sensor_to_index["timeout"]])*60
             tdelta = 0
@@ -499,7 +498,7 @@ def on_message(client, userdata, message):
             # Update last reading for this sensor
             cur_mqtt.execute(
                 "UPDATE `sensors` SET `current_val_1` = %s WHERE sensor_id = %s AND sensor_child_id = %s;",
-                [mqtt_payload, sensor_id, mqtt_child_sensor_id],
+                [mqtt_payload, sensors_id, mqtt_child_sensor_id],
             )
             con_mqtt.commit()
             if mode == 1:
