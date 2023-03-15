@@ -213,8 +213,11 @@ def boiler():
                      cnx.commit()
                      cursorinsert.close()
                      cursorupdate = cnx.cursor()
-                     query = ("UPDATE `sensors` SET `current_val_" + str(position + 1) + "` = "  + str(response) + " WHERE `id` = " + str(sensor_id) + ";")
-                     cursorupdate.execute(query)
+                     if position == 0:
+                         qry_str = "UPDATE `sensors` SET `current_val_1`  = {} WHERE `sensor_id` = {} AND `sensor_child_id` = {} LIMIT 1;".format(response, sensor_id, sensor_child_id)
+                     else:
+                         qry_str = "UPDATE `sensors` SET `current_val_2`  = {} WHERE `sensor_id` = {} AND `sensor_child_id` = {} LIMIT 1;".format(response, sensor_id, sensor_child_id)
+                     cursorupdate.execute(qry_str)
                      cnx.commit()
                      cursorupdate.close()
                      last_readings[message] = response
@@ -246,8 +249,11 @@ def boiler():
                      cnx.commit()
                      cursorinsert.close()
                      cursorupdate = cnx.cursor()
-                     query = ("UPDATE `sensors` SET `current_val_" + str(position + 1) + "` = "  + str(response) + " WHERE `id` = " + str(sensor_id) + ";")
-                     cursorupdate.execute(query)
+                     if position == 0:
+                         qry_str = "UPDATE `sensors` SET `current_val_1`  = {} WHERE `sensor_id` = {} AND `sensor_child_id` = {} LIMIT 1;".format(response, sensor_id, sensor_child_id)
+                     else:
+                         qry_str = "UPDATE `sensors` SET `current_val_2`  = {} WHERE `sensor_id` = {} AND `sensor_child_id` = {} LIMIT 1;".format(response, sensor_id, sensor_child_id)
+                     cursorupdate.execute(qry_str)
                      cnx.commit()
                      cursorupdate.close()
                   except :
@@ -340,4 +346,3 @@ def main() :
 
 if __name__=="__main__":
    main()
-
