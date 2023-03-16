@@ -69,7 +69,10 @@ if ai_result[image_to_index['enabled']] == 1:
     frequency = ai_result[image_to_index['frequency']]
     f = frequency.split(" ")
     if f[1] == "DAY" :
-        freq = int(f[0]) * 24 * 60 * 60
+        if f[0] == "1":
+            freq = int(f[0]) * 23 * 60 * 60
+        else:
+            freq = int(f[0]) * 24 * 60 * 60
     else :
         freq = int(f[0]) * 7 * 24 * 60 * 60
 
