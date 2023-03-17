@@ -2118,7 +2118,7 @@ echo '
 					<!-- /.form-group -->';
 
 					if ((settings($conn, 'mode') & 0b1) == 1) {
-                                        echo '<div class="form-group" class="control-label"><label>'.$lang['cool_relay_id'].'</label> <small class="text-muted">'.$lang['cool_relay_id_info'].'</small>
+             echo '<div class="form-group" class="control-label"><label>'.$lang['cool_relay_id'].'</label> <small class="text-muted">'.$lang['cool_relay_id_info'].'</small>
                                                 <select class="form-select" type="text" id="cool_relay_id" name="cool_relay_id" >';
                                                 //get list of heat relays to display
                                                 $query = "SELECT id, name FROM relays WHERE type = 3;";
@@ -2944,6 +2944,10 @@ echo '
                                 </div>
             		</div>
             		<div class="modal-body">';
+                                $gquery = "SELECT * FROM `nodes` WHERE `node_id` = '0' AND `name` LIKE '%Gateway%' AND `sketch_version` > 0.35";
+                                $result = $conn->query($gquery);
+                                $rowcount=mysqli_num_rows($result);
+                                if ( $rowcount == 0) { $v2_gateway = false; } else { $v2_gateway = true; }
 				$gquery = "SELECT * FROM gateway";
 				$gresult = $conn->query($gquery);
                                 $rowcount=mysqli_num_rows($gresult);
@@ -2961,16 +2965,19 @@ echo '
                                                 $display_wifi = "display:block";
                                                 $display_serial = "display:none";
                                                 $display_timeout = "display:block";
+                                                if ($v2_gateway) { $display_heartbeat = "display:block"; } else { $display_heartbeat = "display:none"; }
                                         } elseif ($gateway_type=='serial') {
                                                 echo $lang['smart_home_gateway_text_serial'];
                                                 $display_wifi = "display:none";
                                                 $display_serial = "display:block";
                                                 $display_timeout = "display:block";
+                                                $display_heartbeat = "display:none";
                                         } elseif ($gateway_type=='virtual') {
                                                 echo $lang['smart_home_gateway_text_virtual'];
                                                 $display_wifi = "display:none";
                                                 $display_serial = "display:none";
                                                 $display_timeout = "display:none";
+                                                $display_heartbeat = "display:none";
                                         }
                                 }
 				echo '</p>';
@@ -3000,7 +3007,7 @@ echo '
                                 </div>
                                 <!-- /.form-group -->
                                 <div class="form-group" class="control-label"><label>'.$lang['smart_home_gateway_type'].'</label>
-                                        <select class="form-select" type="text" id="gw_type" name="gw_type" onchange=gw_location()>
+                                        <select class="form-select" type="text" id="gw_type" name="gw_type" onchange=gw_location('.$v2_gateway.')>
                                         <option value="wifi" ' . ($gateway_type=='wifi' ? 'selected' : '') . '>'.$lang['wifi'].'</option>
                                         <option value="serial" ' . ($gateway_type=='serial' ? 'selected' : '') . '>'.$lang['serial'].'</option>
                                         <option value="virtual" ' . ($gateway_type=='virtual' ? 'selected' : '') . '>'.$lang['virtual'].'</option>
@@ -3052,7 +3059,7 @@ echo '
                                         </div>
                                 </div>
                                 <!-- /.form-group -->
-				<div class="form-group" class="control-label" id="gw_timout_label" style="'.$display_timeout.'"><label>'.$lang['timeout'].' </label>
+				<div class="form-group" class="control-label" id="gw_timout_label" style="'.$display_timeout.'"><label>'.$lang['interface_timeout'].' </label> <small class="text-muted">'.$lang['seconds'].'</small>
                                         <select class="form-select" type="text" id="gw_timout" name="gw_timout">
                                         <option selected>'.$grow['timout'].'</option>
                                         <option value="0">0</option>
@@ -3070,6 +3077,24 @@ echo '
                                         </select>
                                         <div class="help-block with-errors"></div>
 				</div>
+                                <!-- /.form-group -->
+                                <div class="form-group" class="control-label" id="gw_heartbeat_label" style="'.$display_heartbeat.'"><label>'.$lang['heartbeat_timeout'].' </label> <small class="text-muted">'.$lang['seconds'].'</small>
+                                        <select class="form-select" type="text" id="gw_heartbeat" name="gw_heartbeat">
+                                        <option selected>'.$grow['heartbeat_timeout'].'</option>
+                                        <option value="0">0</option>
+                                        <option value="30">30</option>
+                                        <option value="60" selected>60</option>
+                                        <option value="90">90</option>
+                                        <option value="120">120</option>
+                                        <option value="150">150</option>
+                                        <option value="180">180</option>
+                                        <option value="210">210</option>
+                                        <option value="240">240</option>
+                                        <option value="270">270</option>
+                                        <option value="300">300</option>
+                                        </select>
+                                        <div class="help-block with-errors"></div>
+                                </div>
                                 <!-- /.form-group -->
 				<div class="form-group" class="control-label"><label>'.$lang['smart_home_gateway_version'].' </label>
 					<input class="form-control" type="text" id="gw_version" name="gw_version" value="'.$grow['version'].'" disabled>
@@ -3190,7 +3215,7 @@ function show_hide_devices()
  }
 }
 
-function gw_location()
+function gw_location(gw_version)
 {
  var e = document.getElementById("gw_type");
  var selected_gw_type = e.value;
@@ -3201,6 +3226,8 @@ function gw_location()
         document.getElementById("wifi_port").style.display = 'none';
         document.getElementById("gw_timout_label").style.visibility = 'hidden';
         document.getElementById("gw_timout").style.display = 'none';
+        document.getElementById("gw_heartbeat_label").style.visibility = 'hidden';
+        document.getElementById("gw_heartbeat").style.display = 'none';
         document.getElementById("wifi_location").value = "";
         document.getElementById("wifi_port_num").value = "";
  } else if(selected_gw_type.includes("wifi")) {
@@ -3209,7 +3236,14 @@ function gw_location()
         document.getElementById("serial_port").style.display = 'none';
         document.getElementById("wifi_port").style.display = 'block';
         document.getElementById("gw_timout_label").style.visibility = 'visible';
-        document.getElementById("gw_timout").style.display = 'block';
+	if(gw_version) {
+	        document.getElementById("gw_timout").style.display = 'block';
+        	document.getElementById("gw_heartbeat_label").style.visibility = 'visible';
+	} else {
+                document.getElementById("gw_timout").style.display = 'none';
+                document.getElementById("gw_heartbeat_label").style.visibility = 'hidden';
+	}
+        document.getElementById("gw_heartbeat").style.display = 'block';
         document.getElementById("wifi_location").value = "192.168.0.100";
         document.getElementById("wifi_port_num").value = "5003";
  } else {
@@ -3219,6 +3253,8 @@ function gw_location()
         document.getElementById("serial_port").style.display = 'block';
         document.getElementById("gw_timout_label").style.visibility = 'visible';
         document.getElementById("gw_timout").style.display = 'block';
+        document.getElementById("gw_heartbeat_label").style.visibility = 'hidden';
+        document.getElementById("gw_heartbeat").style.display = 'none';
         document.getElementById("serial_location").value = "/dev/ttyAMA0";
         document.getElementById("serial_port_speed").value = "115200";
  }

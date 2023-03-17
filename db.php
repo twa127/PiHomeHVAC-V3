@@ -1384,15 +1384,16 @@ if($what=="setup_gateway"){
 	$gw_location = $_GET['gw_location'];
 	$gw_port = $_GET['gw_port'];
 	$gw_timout = $_GET['gw_timout'];
+        $gw_heartbeat = $_GET['gw_heartbeat'];
 	if ($status=='true'){$status = '1';}else {$status = '0';}
         if ($enable_outgoing=='true'){$enable_outgoing = '1';}else {$enable_outgoing = '0';}
         $query = "SELECT * FROM gateway LIMIT 1;";
         $result = $conn->query($query);
         if (mysqli_num_rows($result)==0){
                 //No record in gateway, so add
-                $query = "INSERT INTO `gateway` VALUES (1,1,0,0,'".$gw_type."','".$gw_location."','".$gw_port."','".$gw_timout."',0, 0, 0, 0, 0,'".$enable_outgoing."');";
+                $query = "INSERT INTO `gateway` VALUES (1,1,0,0,'".$gw_type."','".$gw_location."','".$gw_port."','".$gw_timout."','".$gw_heartbeat."', 0, 0, 0, 0, 0,'".$enable_outgoing."');";
         } else {
-		$query = "UPDATE gateway SET status = '".$status."', `sync` = '0', type = '".$gw_type."', location = '".$gw_location."', port = '".$gw_port."', timout = '".$gw_timout."', enable_outgoing = '".$enable_outgoing."' where ID = 1;";
+		$query = "UPDATE gateway SET status = '".$status."', `sync` = '0', type = '".$gw_type."', location = '".$gw_location."', port = '".$gw_port."', timout = '".$gw_timout."', heartbeat_timeout = '".$gw_heartbeat."', enable_outgoing = '".$enable_outgoing."' where ID = 1;";
 	}
 	if($conn->query($query)){
 		header('Content-type: application/json');

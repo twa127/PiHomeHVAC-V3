@@ -713,13 +713,31 @@ try:
     gatewayport = row[
         gateway_to_index["port"]
     ]  # UDP port or bound rate for MySensors gateway
+
     gatewaytimeout = int(
         row[gateway_to_index["timout"]]
-    )  # Connection timeout in Seconds
+    )  # Interface Connection timeout in Minutes
+
+    gatewayheartbeat = int(
+        row[gateway_to_index["heartbeat_timeout"]]
+    )  # Heartbeat timeout in Seconds
 
     gatewayenableoutgoing = int(
         row[gateway_to_index["enable_outgoing"]]
     )  # Flag to indicate if outgoing messages sgould be processed
+
+    #check for gateway/controller, that sens a Heartbeat message
+    cur.execute(
+        "SELECT COUNT(*) FROM `nodes` WHERE `node_id` = '0' AND `name` LIKE '%Gateway%' AND `sketch_version` > 0.35"
+    )  # MySQL query statement
+    count = cur.fetchone()  # Grab all messages from database for Outgoing.
+    count = count[
+        0
+    ]  # Parse first and the only one part of data table named "count" - there is number of records grabbed in SELECT above
+    if count >0:
+        gateway_v2 = True
+    else:
+        gateway_v2 = False
 
     if gatewaytype == "serial":
         # ps. you can troubleshoot with "screen"
@@ -737,9 +755,11 @@ try:
         gw = telnetlib.Telnet(
             gatewaylocation, gatewayport, timeout=gatewaytimeout
         )  # Connect mysensors gateway from MySQL Database
-        print(bc.grn + "Gateway Type:  Wifi/Ethernet", bc.ENDC)
-        print(bc.grn + "IP Address:    ", gatewaylocation, bc.ENDC)
-        print(bc.grn + "UDP Port:      ", gatewayport, bc.ENDC)
+        print(bc.grn + "Gateway Type      : Wifi/Ethernet", bc.ENDC)
+        print(bc.grn + "IP Address        :", gatewaylocation, bc.ENDC)
+        print(bc.grn + "UDP Port          :", gatewayport, bc.ENDC)
+        if gateway_v2:
+            print(bc.grn + "Heartbeat Timeout :", gatewayheartbeat, "Seconds", bc.ENDC)
     else:
         print(bc.grn + "Gateway Type:  Virtual", bc.ENDC)
 
@@ -922,14 +942,7 @@ try:
 
         ## Terminate gateway script if no route to network gateway
         if gatewaytype == "wifi":
-            cur.execute(
-                "SELECT COUNT(*) FROM `nodes` WHERE `node_id` = '0' AND `name` LIKE '%Gateway%' AND `sketch_version` > 0.35"
-            )  # MySQL query statement
-            count = cur.fetchone()  # Grab all messages from database for Outgoing.
-            count = count[
-                0
-            ]  # Parse first and the only one part of data table named "count" - there is number of records grabbed in SELECT above
-            if count == 0:
+            if not gateway_v2:
                 if time.time() - ping_timer >= 60:
                     ping_timer = time.time()
                     gateway_up = (
@@ -938,13 +951,13 @@ try:
                     if not gateway_up:
                         raise GatewayException("Unable to contact Gateway at: - " + gatewaylocation)
             else:
-                # Heartbeat for WT32-ETH01 Ver 2 Gateways
-                if time.time() - heartbeat_timer >= 60:
+                # For WT32-ETH01 Ver 2 Gateways, check that they are sending a regular Heartbeat message
+                if time.time() - heartbeat_timer >= gatewayheartbeat:
                     heartbeat_timer = time.time()
                     print(bc.grn + "\nNO Heatbeat Message from Gateway", bc.ENDC)
                     raise GatewayException("No Heartbeat from Gateway at: - " + gatewaylocation)
 
-                # Sent heartbeat message to gateway
+                # Send heartbeat message to gateway every 30seconds
                 if time.time() - wifi_gateway_heartbeat >= 30:
                     wifi_gateway_heartbeat = time.time()
                     msg = "0;0;0;0;24;Gateway Script Heartbeat \n"
@@ -1495,7 +1508,7 @@ try:
                         con.commit()
                         # Check if this sensor has a correction factor
                         cur.execute(
-                            "SELECT sensors.id, sensors.mode, sensors.timeout, sensors.correction_factor, sensors.resolution FROM sensors, `nodes` WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s) LIMIT 1;",
+                            "SELECT nodes.id, sensors.mode, sensors.timeout, sensors.correction_factor, sensors.resolution FROM sensors, `nodes` WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s) LIMIT 1;",
                             (node_id, child_sensor_id),
                         )
                         results = cur.fetchone()
@@ -1516,8 +1529,8 @@ try:
                             resolution = float(results[sensor_to_index["resolution"]])
                             # Update last reading for this sensor
                             cur.execute(
-                                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
-                                [payload, sensor_id],
+                                "UPDATE `sensors` SET `current_val_1` = %s WHERE sensor_id = %s AND sensor_child_id = %s;",
+                                [payload, sensor_id, child_sensor_id],
                             )
                             con.commit()
                             if mode == 1:
@@ -1661,7 +1674,7 @@ try:
                         con.commit()
                         # Check is sensor is attached to a zone which is being graphed
                         cur.execute(
-                            """SELECT sensors.id, sensors.zone_id, nodes.node_id, sensors.sensor_child_id, sensors.name, sensors.graph_num
+                            """SELECT sensors.id, sensors.zone_id, nodes.id AS n_id, nodes.node_id, sensors.sensor_child_id, sensors.name, sensors.graph_num
                                FROM sensors, `nodes`
                                WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s)  LIMIT 1;""",
                             (node_id, child_sensor_id),
@@ -1674,10 +1687,11 @@ try:
                             sensor_id = int(results[sensor_to_index["id"]])
                             sensor_name = results[sensor_to_index["name"]]
                             zone_id = results[sensor_to_index["zone_id"]]
+                            n_id = int(results[sensor_to_index["n_id"]])
                             # Update last reading for this sensor
                             cur.execute(
-                                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
-                                [payload, sensor_id],
+                                "UPDATE `sensors` SET `current_val_1` = %s WHERE sensor_id = %s AND sensor_child_id = %s;",
+                                [payload, n_id, child_sensor_id],
                             )
                             con.commit()
                             # type = results[zone_view_to_index['type']]
@@ -1770,23 +1784,19 @@ try:
                         )
                         con.commit()
                         cur.execute(
-                            """SELECT sensors.id, sensors.zone_id, nodes.node_id, sensors.sensor_child_id, sensors.name, sensors.graph_num
-                               FROM sensors, `nodes`
-                               WHERE (sensors.sensor_id = nodes.`id`) AND  nodes.node_id = (%s) AND sensors.sensor_child_id = (%s)  LIMIT 1;""",
-                            (node_id, child_sensor_id),
+                            "SELECT id FROM `nodes` WHERE node_id = (%s) LIMIT 1;",
+                            (node_id, ),
                         )
-                        results = cur.fetchone()
+                        result = cur.fetchone()
                         if cur.rowcount > 0:
-                            sensor_to_index = dict(
+                            node_to_index = dict(
                                 (d[0], i) for i, d in enumerate(cur.description)
                             )
-                            sensor_id = int(results[sensor_to_index["id"]])
-                            sensor_name = results[sensor_to_index["name"]]
-                            zone_id = results[sensor_to_index["zone_id"]]
+                            sensor_id = int(result[node_to_index["id"]])
                             # Update last reading for this sensor
                             cur.execute(
-                                "UPDATE `sensors` SET `current_val_1` = %s WHERE id = %s",
-                                [payload, sensor_id],
+                                "UPDATE `sensors` SET `current_val_1` = %s WHERE sensor_id = %s AND sensor_child_id = %s;",
+                                [payload, sensor_id, child_sensor_id],
                             )
                             con.commit()
 
