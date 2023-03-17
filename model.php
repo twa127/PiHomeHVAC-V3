@@ -3059,7 +3059,7 @@ echo '
                                         </div>
                                 </div>
                                 <!-- /.form-group -->
-				<div class="form-group" class="control-label" id="gw_timout_label" style="'.$display_timeout.'"><label>'.$lang['interface_timeout'].' </label> <small class="text-muted">'.$lang['seconds'].'</small>
+				<div class="form-group" class="control-label" id="gw_timeout" style="'.$display_timeout.'"><label id="gw_timeout_label">'.$lang['interface_timeout'].' </label> <small class="text-muted">'.$lang['seconds'].'</small>
                                         <select class="form-select" type="text" id="gw_timout" name="gw_timout">
                                         <option selected>'.$grow['timout'].'</option>
                                         <option value="0">0</option>
@@ -3078,7 +3078,7 @@ echo '
                                         <div class="help-block with-errors"></div>
 				</div>
                                 <!-- /.form-group -->
-                                <div class="form-group" class="control-label" id="gw_heartbeat_label" style="'.$display_heartbeat.'"><label>'.$lang['heartbeat_timeout'].' </label> <small class="text-muted">'.$lang['seconds'].'</small>
+                                <div class="form-group" class="control-label" id="heartbeat" style="'.$display_heartbeat.'"><label id="heartbeat_label">'.$lang['heartbeat_timeout'].' </label> <small class="text-muted">'.$lang['seconds'].'</small>
                                         <select class="form-select" type="text" id="gw_heartbeat" name="gw_heartbeat">
                                         <option selected>'.$grow['heartbeat_timeout'].'</option>
                                         <option value="0">0</option>
@@ -3224,10 +3224,10 @@ function gw_location(gw_version)
         document.getElementById("wifi_gw").style.display = 'none';
         document.getElementById("serial_port").style.display = 'none';
         document.getElementById("wifi_port").style.display = 'none';
-        document.getElementById("gw_timout_label").style.visibility = 'hidden';
-        document.getElementById("gw_timout").style.display = 'none';
-        document.getElementById("gw_heartbeat_label").style.visibility = 'hidden';
-        document.getElementById("gw_heartbeat").style.display = 'none';
+        document.getElementById("gw_timeout_label").style.visibility = 'hidden';
+        document.getElementById("gw_timeout").style.display = 'none';
+        document.getElementById("heartbeat_label").style.visibility = 'hidden';
+        document.getElementById("heartbeat").style.display = 'none';
         document.getElementById("wifi_location").value = "";
         document.getElementById("wifi_port_num").value = "";
  } else if(selected_gw_type.includes("wifi")) {
@@ -3235,16 +3235,15 @@ function gw_location(gw_version)
         document.getElementById("wifi_gw").style.display = 'block';
         document.getElementById("serial_port").style.display = 'none';
         document.getElementById("wifi_port").style.display = 'block';
-        document.getElementById("gw_timout_label").style.visibility = 'visible';
-	document.getElementById("gw_timout").style.display = 'block';
+        document.getElementById("gw_timeout_label").style.visibility = 'visible';
+	document.getElementById("gw_timeout").style.display = 'block';
 	if(gw_version) {
-        	document.getElementById("gw_heartbeat_label").style.visibility = 'visible';
-		document.getElementById("gw_heartbeat").style.display = 'block';
+        	document.getElementById("heartbeat_label").style.visibility = 'visible';
+		document.getElementById("heartbeat").style.display = 'block';
 	} else {
-                document.getElementById("gw_heartbeat_label").style.visibility = 'hidden';
-		document.getElementById("gw_heartbeat").style.display = 'none';
+                document.getElementById("heartbeat_label").style.visibility = 'hidden';
+		document.getElementById("heartbeat").style.display = 'none';
 	}
-        document.getElementById("gw_heartbeat").style.display = 'block';
         document.getElementById("wifi_location").value = "192.168.0.100";
         document.getElementById("wifi_port_num").value = "5003";
  } else {
@@ -3252,10 +3251,10 @@ function gw_location(gw_version)
         document.getElementById("serial_gw").style.display = 'block';
         document.getElementById("wifi_port").style.display = 'none';
         document.getElementById("serial_port").style.display = 'block';
-        document.getElementById("gw_timout_label").style.visibility = 'visible';
-        document.getElementById("gw_timout").style.display = 'block';
-        document.getElementById("gw_heartbeat_label").style.visibility = 'hidden';
-        document.getElementById("gw_heartbeat").style.display = 'none';
+        document.getElementById("gw_timeout_label").style.visibility = 'visible';
+        document.getElementById("gw_timeout").style.display = 'block';
+        document.getElementById("heartbeat_label").style.visibility = 'hidden';
+        document.getElementById("heartbeat").style.display = 'none';
         document.getElementById("serial_location").value = "/dev/ttyAMA0";
         document.getElementById("serial_port_speed").value = "115200";
  }
