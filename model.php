@@ -3236,12 +3236,13 @@ function gw_location(gw_version)
         document.getElementById("serial_port").style.display = 'none';
         document.getElementById("wifi_port").style.display = 'block';
         document.getElementById("gw_timout_label").style.visibility = 'visible';
+	document.getElementById("gw_timout").style.display = 'block';
 	if(gw_version) {
-	        document.getElementById("gw_timout").style.display = 'block';
         	document.getElementById("gw_heartbeat_label").style.visibility = 'visible';
+		document.getElementById("gw_heartbeat").style.display = 'block';
 	} else {
-                document.getElementById("gw_timout").style.display = 'none';
                 document.getElementById("gw_heartbeat_label").style.visibility = 'hidden';
+		document.getElementById("gw_heartbeat").style.display = 'none';
 	}
         document.getElementById("gw_heartbeat").style.display = 'block';
         document.getElementById("wifi_location").value = "192.168.0.100";
