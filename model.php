@@ -3098,7 +3098,7 @@ echo '
                                 </div>
                                 <!-- /.form-group -->
 				<div class="form-group" class="control-label"><label>'.$lang['smart_home_gateway_version'].' </label>
-					<input class="form-control" type="text" id="gw_version" name="gw_version" value="'.$grow['version'].' ('.$sketch_version.'}" disabled>
+					<input class="form-control" type="text" id="gw_version" name="gw_version" value="'.$grow['version'].' ('.$sketch_version.')" disabled>
 					<div class="help-block with-errors">
 					</div>
 				</div>
