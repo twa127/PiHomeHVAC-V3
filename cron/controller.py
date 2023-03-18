@@ -1112,31 +1112,50 @@ try:
                         weather_fact = 0
                         if system_controller_mode == 0 and sc_weather_factoring == 1:
                             if sc_weather_sensor_id == 0:
-                                weather_sensor_id = 1
+                                weather_sensor_node_id = 1
+                                weather_sensor_child_id = 0
                             else:
                                 cur.execute(
-                                    "SELECT current_val_1 FROM sensors WHERE id = %s LIMIT 1;",
+                                    "SELECT sensor_id, sensor_child_id FROM sensors WHERE id = %s LIMIT 1;",
                                     (sc_weather_sensor_id, ),
                                 )
                                 if cur.rowcount > 0:
                                     sensor = cur.fetchonel()
                                     sensor_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-                                    weather_c = sensor[sensor_in_to_index['current_val_1']]
-                                    #    1    00-05    0.3
-                                    #    2    06-10    0.4
-                                    #    3    11-15    0.5
-                                    #    4    16-20    0.6
-                                    #    5    21-30    0.7
-                                    if weather_c <= 5 :
-                                        weather_fact = 0.3
-                                    elif weather_c <= 10:
-                                        weather_fact = 0.4
-                                    elif weather_c <= 15:
-                                        weather_fact = 0.5
-                                    elif weather_c <= 20:
-                                        weather_fact = 0.6
-                                    elif weather_c <= 30:
-                                        weather_fact = 0.7
+                                    weather_sensor_id = sensor[sensor_in_to_index['sensor_id']]
+                                    weather_sensor_child_id = sensor[sensor_in_to_index['sensor_child_id']]
+                                    cur.execute(
+                                        "SELECT * FROM nodes WHERE id = %s LIMIT 1;",
+                                        (sc_weather_sensor_id, ),
+                                    )
+                                    if cur.rowcount > 0:
+                                        node = cur.fetchone()
+                                        node_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                        weather_sensor_node_id = node[node_in_to_index['node_id']]
+
+                            cur.execute(
+                                "SELECT * FROM messages_in WHERE node_id = %s AND child_id = %s ORDER BY id desc LIMIT 1;",
+                                (weather_sensor_node_id, weather_sensor_child_id),
+                            )
+                            if cur.rowcount > 0:
+                                messages_in = cur.fetchone()
+                                messages_in_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+                                weather_c = messages_in[messages_in_to_index['payload']]
+                                #    1    00-05    0.3
+                                #    2    06-10    0.4
+                                #    3    11-15    0.5
+                                #    4    16-20    0.6
+                                #    5    21-30    0.7
+                                if weather_c <= 5 :
+                                    weather_fact = 0.3
+                                elif weather_c <= 10:
+                                    weather_fact = 0.4
+                                elif weather_c <= 15:
+                                    weather_fact = 0.5
+                                elif weather_c <= 20:
+                                    weather_fact = 0.6
+                                elif weather_c <= 30:
+                                    weather_fact = 0.7
 
                         #Following to decide which temperature is target temperature
                         if livetemp_active == 1 and livetemp_zone_id == zone_id:
