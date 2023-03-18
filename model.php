@@ -2944,10 +2944,11 @@ echo '
                                 </div>
             		</div>
             		<div class="modal-body">';
-                                $gquery = "SELECT * FROM `nodes` WHERE `node_id` = '0' AND `name` LIKE '%Gateway%' AND `sketch_version` > 0.35";
+                                $gquery = "SELECT * FROM `nodes` WHERE `node_id` = '0' AND `name` LIKE '%Gateway%'";
                                 $result = $conn->query($gquery);
-                                $rowcount=mysqli_num_rows($result);
-                                if ( $rowcount == 0) { $v2_gateway = false; } else { $v2_gateway = true; }
+				$row = mysqli_fetch_array($result);
+				$sketch_version = $row['sketch_version'];
+                                if ( $sketch_version > 0.35) { $v2_gateway = true; } else { $v2_gateway = false; }
 				$gquery = "SELECT * FROM gateway";
 				$gresult = $conn->query($gquery);
                                 $rowcount=mysqli_num_rows($gresult);
@@ -3065,7 +3066,7 @@ echo '
                                         <option value="0">0</option>
                                         <option value="1">1</option>
                                         <option value="2">2</option>
-                                        <option value="3" selected>3</option>
+                                        <option value="3">3</option>
                                         <option value="4">4</option>
                                         <option value="5">5</option>
                                         <option value="6">6</option>
@@ -3083,7 +3084,7 @@ echo '
                                         <option selected>'.$grow['heartbeat_timeout'].'</option>
                                         <option value="0">0</option>
                                         <option value="30">30</option>
-                                        <option value="60" selected>60</option>
+                                        <option value="60">60</option>
                                         <option value="90">90</option>
                                         <option value="120">120</option>
                                         <option value="150">150</option>
@@ -3097,7 +3098,7 @@ echo '
                                 </div>
                                 <!-- /.form-group -->
 				<div class="form-group" class="control-label"><label>'.$lang['smart_home_gateway_version'].' </label>
-					<input class="form-control" type="text" id="gw_version" name="gw_version" value="'.$grow['version'].'" disabled>
+					<input class="form-control" type="text" id="gw_version" name="gw_version" value="'.$grow['version'].' ('.$sketch_version.'}" disabled>
 					<div class="help-block with-errors">
 					</div>
 				</div>
