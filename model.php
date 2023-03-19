@@ -774,7 +774,9 @@ echo '
 </div>';
 
 //Setup Auto Image
-if (file_exists("/usr/local/bin/image-backup") && !file_exists('/etc/armbian-release')) {
+$query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'maxair' AND table_name = 'auto_image';";
+$result = $conn->query($query);
+if (mysqli_num_rows($result) != 0) {
 	echo '<div class="modal fade" id="auto_image" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
 		<div class="modal-dialog">
         		<div class="modal-content">
