@@ -977,8 +977,6 @@ echo '
 					</div>';
                                         $path = '/var/www/add_on';
                                         $dir = new DirectoryIterator($path);
-					// check if running on Armbian, if so do not allow install of Image Tools
-					if (file_exists('/etc/armbian-release')) { $rpi = false; } else { $rpi = true; }
                                         foreach ($dir as $fileinfo) {
 						$installed = 0;
                                                 if ($fileinfo->isDir() && !$fileinfo->isDot()) {
@@ -1014,26 +1012,24 @@ echo '
                                                                 } else {
                                                                         $instaleed = 2;
                                                                 }
-								if ($rpi || (!$rpi && strpos($name, 'Install Image Tools') === false)) {
-	                                                                echo '<div class="list-group-item">
-										<div class="d-flex justify-content-between">
-											<div>
-                        	                                        			<i class="bi bi-terminal-fill green" style="font-size: 2rem;"></i> '.$name.'
-											</div>
-											<div>';
-                                             				                	if ($installed == 0) {
-                                                        	        		        	echo '<span class="text-muted small"><button type="button" class="btn btn-bm-'.theme($conn, $theme, 'color').' login btn-sm"
-		                                                	                        	onclick="install_software(`'.$installpath.'`)">'.$lang['install'].'</button></span>';
-		                                                        	        	} elseif ($installed == 1) {
-                		                                                	        	echo '<span class="text"><p> '.$lang['already_installed'].'</p></span>';
-                                                                				} else {
-                                                                        				echo '<span class="text"><p> '.$lang['no_installer'].'</p></span>';
-	                                                                			}
-											echo '</div>
-										</div>
-                        	                                        	<p class="text-muted">'.$description.'</p>
-									</div>';
-								}
+                                                                echo '<div class="list-group-item">
+                                                                        <div class="d-flex justify-content-between">
+                                                                                <div>
+                                                                                        <i class="bi bi-terminal-fill green" style="font-size: 2rem;"></i> '.$name.'
+                                                                                </div>
+                                                                                <div>';
+                                                                                        if ($installed == 0) {
+                                                                echo '<span class="text-muted small"><button type="button" class="btn btn-bm-'.theme($conn, $theme, 'color').' login btn-sm"
+                                                                                                onclick="install_software(`'.$installpath.'`)">'.$lang['install'].'</button></span>';
+                                                                                        } elseif ($installed == 1) {
+                                                                                                echo '<span class="text"><p> '.$lang['already_installed'].'</p></span>';
+                                                                                        } else {
+                                                                                                echo '<span class="text"><p> '.$lang['no_installer'].'</p></span>';
+                                                                                        }
+                                                                                echo '</div>
+                                                                        </div>
+                                                                        <p class="text-muted">'.$description.'</p>
+                                                                </div>';
                                                         }
                                                 }
                                         }
