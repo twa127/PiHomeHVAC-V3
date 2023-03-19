@@ -664,10 +664,10 @@ try:
                     (zone_id,),
                 )
                 if cur.rowcount == 0:
-                    qry_str = """INSERT INTO `zone_current_state`(id, `sync`, `purge`, `zone_id`, `mode`, `status`, `status_prev`, `schedule`, `temp_reading`, `temp_target`, `temp_cut_in`,
-                                 `temp_cut_out`, `controler_fault`, `controler_seen_time`, `sensor_fault`, `sensor_seen_time`, `sensor_reading_time`, `overrun`)
-                                  VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {});""".format(
-                                  zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, 0,  NULL,  NULL, 0
+                    qry_str = """INSERT INTO `zone_current_state`(id, `sync`, `purge`, `zone_id`, `mode`, `status`, `status_prev`, `schedule`, `sch_time_id`, `temp_reading`, `temp_target`,
+                                 `temp_cut_in`, `temp_cut_out`, `controler_fault`, `controler_seen_time`, `sensor_fault`, `sensor_seen_time`, `sensor_reading_time`, `overrun`)
+                                  VALUES ({}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {}, {});""".format(
+                                  zone_id, 0, 0, zone_id, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, NULL, 0,  NULL,  NULL, 0
                                   )
                     cur.execute(qry_str)
                     con.commit()
@@ -791,8 +791,8 @@ try:
 
                     #update the current schedule status
                     cur.execute(
-                        "UPDATE zone_current_state SET schedule = %s WHERE zone_id = %s;",
-                        [sch_status, zone_id],
+                        "UPDATE zone_current_state SET schedule = %s, sch_time_id = %s WHERE zone_id = %s;",
+                        [sch_status, time_id, zone_id],
                     )
                     con.commit()  # commit above
 
