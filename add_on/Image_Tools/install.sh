@@ -52,6 +52,7 @@ if [ "${osver[0]}" == "Raspbian" ]; then
 elif [ "${osver[0]}" == "Orange" ]; then
         echo "Orange Pi check if dcfldd is installed"
         check_installed
+        dcfldd_config
 fi
 
 echo "Done"
