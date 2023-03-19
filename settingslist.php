@@ -346,13 +346,15 @@ if ($settings_id <= 3) {
                                                 <h3 class="status"></small></h3>
                                                 </button>
 
-						<?php if (file_exists("/usr/local/bin/image-backup") && !file_exists('/etc/armbian-release')) { ?>
-							<button type="button" class="btn btn-bm-<?php echo theme($conn, $theme, 'color'); ?> btn-circle <?php echo $button_style; ?> mainbtn animated fadeIn" data-bs-toggle="modal" data-bs-target="#auto_image">
-        	                                        <h3 class="buttontop"><small><?php echo $lang['auto_image']; ?></small></h3>
-                	                                <h3 class="degre" ><i class="bi bi-image red" style="font-size: 1.5rem;"></i></h3>
-                        	                        <h3 class="status"></small></h3>
-                                	                </button>
-						<?php } ?>
+                                                <?php $query = "SELECT table_name FROM information_schema.tables WHERE table_schema = 'maxair' AND table_name = 'auto_image';";
+                                                        $result = $conn->query($query);
+                                                        if (mysqli_num_rows($result) != 0) { ?>
+								<button type="button" class="btn btn-bm-<?php echo theme($conn, $theme, 'color'); ?> btn-circle <?php echo $button_style; ?> mainbtn animated fadeIn" data-bs-toggle="modal" data-bs-target="#auto_image">
+        	                                        	<h3 class="buttontop"><small><?php echo $lang['auto_image']; ?></small></h3>
+                	                                	<h3 class="degre" ><i class="bi bi-image red" style="font-size: 1.5rem;"></i></h3>
+                        	                        	<h3 class="status"></small></h3>
+                                	                	</button>
+							<?php } ?>
 
 	        	        		<button type="button" class="btn btn-bm-<?php echo theme($conn, $theme, 'color'); ?> btn-circle <?php echo $button_style; ?> mainbtn animated fadeIn" data-href="#" data-bs-toggle="modal" data-bs-target="#user_setup">
 				                <h3 class="buttontop"><small><?php echo $lang['user_accounts']; ?></small></h3>
