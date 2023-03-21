@@ -1334,8 +1334,9 @@ if($what=="reboot"){
 	//systemctl stop mysql.service
 	//exec("systemctl stop mysql.service");
 
-	exec("python3 /var/www/reboot.py");
-	$info_message = "Server is rebooting <small> Please Do not Refresh... </small>";
+        $info_message = "Server is rebooting <small> Please Do not Refresh... </small>";
+        $query = "UPDATE system SET reboot = 1;";
+        $conn->query($query);
 }
 
 //Shutdown System
@@ -1358,8 +1359,9 @@ if($what=="shutdown"){
 	exec("systemctl stop mysql.service");
 	*/
 	//Shutdown System
-	exec("python3 /var/www/shutdown.py");
 	$info_message = "Server is Shutting down <small> Please Do not Refresh... </small>";
+        $query = "UPDATE system SET shutdown = 1;";
+        $conn->query($query);
 }
 
 
