@@ -1815,7 +1815,7 @@ echo '
             </div>
             <div class="modal-body">
 <p class="text-muted"> '.$lang['schedule_jobs_info'].' </p>';
-$query = "SELECT id, job_name, script, enabled, log_it, time FROM jobs ORDER BY id asc";
+$query = "SELECT id, job_name, script, enabled, log_it, time FROM jobs WHERE job_name NOT LIKE 'shutdown_reboot' ORDER BY id asc";
 $results = $conn->query($query);
 echo '<br><table>
     <tr>
