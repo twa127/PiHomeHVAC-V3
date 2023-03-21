@@ -2946,7 +2946,6 @@ echo '
                                 $result = $conn->query($gquery);
 				$row = mysqli_fetch_array($result);
 				$sketch_version = $row['sketch_version'];
-                                if ( $sketch_version > 0.35) { $v2_gateway = true; } else { $v2_gateway = false; }
 				$gquery = "SELECT * FROM gateway";
 				$gresult = $conn->query($gquery);
                                 $rowcount=mysqli_num_rows($gresult);
@@ -2964,7 +2963,7 @@ echo '
                                                 $display_wifi = "display:block";
                                                 $display_serial = "display:none";
                                                 $display_timeout = "display:block";
-                                                if ($v2_gateway) { $display_heartbeat = "display:block"; } else { $display_heartbeat = "display:none"; }
+                                                $display_heartbeat = "display:block";
                                         } elseif ($gateway_type=='serial') {
                                                 echo $lang['smart_home_gateway_text_serial'];
                                                 $display_wifi = "display:none";
@@ -3006,7 +3005,7 @@ echo '
                                 </div>
                                 <!-- /.form-group -->
                                 <div class="form-group" class="control-label"><label>'.$lang['smart_home_gateway_type'].'</label>
-                                        <select class="form-select" type="text" id="gw_type" name="gw_type" onchange=gw_location('.$v2_gateway.')>
+                                        <select class="form-select" type="text" id="gw_type" name="gw_type" onchange=gw_location()>
                                         <option value="wifi" ' . ($gateway_type=='wifi' ? 'selected' : '') . '>'.$lang['wifi'].'</option>
                                         <option value="serial" ' . ($gateway_type=='serial' ? 'selected' : '') . '>'.$lang['serial'].'</option>
                                         <option value="virtual" ' . ($gateway_type=='virtual' ? 'selected' : '') . '>'.$lang['virtual'].'</option>
@@ -3216,7 +3215,7 @@ function show_hide_devices()
 
 function gw_location(gw_version)
 {
- var e = document.getElementById("gw_type");
+ var e = document.getElementById();
  var selected_gw_type = e.value;
  if(selected_gw_type.includes("virtual")) {
         document.getElementById("serial_gw").style.display = 'none';
@@ -3236,13 +3235,8 @@ function gw_location(gw_version)
         document.getElementById("wifi_port").style.display = 'block';
         document.getElementById("gw_timeout_label").style.visibility = 'visible';
 	document.getElementById("gw_timeout").style.display = 'block';
-	if(gw_version) {
-        	document.getElementById("heartbeat_label").style.visibility = 'visible';
-		document.getElementById("heartbeat").style.display = 'block';
-	} else {
-                document.getElementById("heartbeat_label").style.visibility = 'hidden';
-		document.getElementById("heartbeat").style.display = 'none';
-	}
+       	document.getElementById("heartbeat_label").style.visibility = 'visible';
+	document.getElementById("heartbeat").style.display = 'block';
         document.getElementById("wifi_location").value = "192.168.0.100";
         document.getElementById("wifi_port_num").value = "5003";
  } else {
