@@ -1014,5 +1014,5 @@ $lang['lag_time'] = "Lag Time";
 $lang['no_livetemp'] = "Needs to be running a Schedule or in CE Mode or BOTH Mode or Boost Mode or Override Mode";
 $lang['gateway_controller'] = "Technical - Combined Gateway and Relay Controller";
 $lang['interface_timeout'] = "Interface Timout";
-$lang['heartbeat_timeout'] = "Heartbeat Timout";
+$lang['heartbeat_timeout'] = "Heartbeat Timout (Only used by Gateway/Controller, Scetch Ver > 0.35)";
 ?>
