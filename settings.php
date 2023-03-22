@@ -25,6 +25,14 @@ require_once(__DIR__.'/st_inc/functions.php');
 
 $page_refresh = page_refresh($conn);
 
+$sensors_params = [];
+$query = "SELECT id FROM sensors;";
+$results = $conn->query($query);
+while ($row = mysqli_fetch_assoc($results)) {
+        $sensor_params[] = array('sensor_id' =>$row['id']);
+}
+$js_sensor_params = json_encode($sensor_params);
+
 if(isset($_GET["frost"])) {
 	$frost_temp = $_GET['frost'];
 	$info_message = "Frost Protection Temperature Changed to $frost_temp&deg;";
@@ -84,8 +92,9 @@ $(document).ready(function(){
   var delay = '<?php echo $page_refresh ?>';
 
   (function loop() {
-    var data = '<?php echo $js_sch_params ?>';
-    if (data.length > 0) {
+    var data = '<?php echo $js_sensor_params ?>';
+    //console.log(data);
+    if (data) {
             var obj = JSON.parse(data)
             //console.log(obj.length);
 
