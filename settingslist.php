@@ -27,16 +27,7 @@ if(isset($_GET['id'])) {
         $settings_id = $_GET['id'];
 }
 
-$page_refresh = page_refresh($conn);
 $theme = settings($conn, 'theme');
-
-$sensors_params = [];
-$query = "SELECT id FROM sensors;";
-$results = $conn->query($query);
-while ($row = mysqli_fetch_assoc($results)) {
-        $sensor_params[] = array('sensor_id' =>$row['id']);
-}
-$js_sensor_params = json_encode($sensor_params);
 
 if ($settings_id == 1) {
 	//query to frost protection temperature
@@ -554,31 +545,3 @@ if ($settings_id <= 3) {
 <?php if (isset($conn)) {
     $conn->close();
 } ?>
-<script>
-$(document).ready(function(){
-    $('[data-bs-toggle="tooltip"]').tooltip();
-});
-
-// update page data every x seconds
-$(document).ready(function(){
-  var delay = '<?php echo $page_refresh ?>';
-
-  (function loop() {
-    var data = '<?php echo $js_sensor_params ?>';
-    if (data.length > 0) {
-            var obj = JSON.parse(data)
-            //console.log(obj.length);
-
-		for (var y = 0; y < obj.length; y++) {
-		  $('#sensor_temp_' + obj[y].sensor_id).load("ajax_fetch_data.php?id=" + obj[y].sensor_id + "&type=16").fadeIn("slow");
-		  //console.log(obj[y].sensor_id);
-		}
-    }
-
-    $('#settings_date').load("ajax_fetch_data.php?id=0&type=13").fadeIn("slow");
-    $('#footer_weather').load("ajax_fetch_data.php?id=0&type=14").fadeIn("slow");
-    $('#footer_all_running_time').load("ajax_fetch_data.php?id=0&type=17").fadeIn("slow");
-    setTimeout(loop, delay);
-  })();
-});
-</script>
