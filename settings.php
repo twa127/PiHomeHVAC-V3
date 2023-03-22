@@ -92,22 +92,21 @@ $(document).ready(function(){
   var delay = '<?php echo $page_refresh ?>';
 
   (function loop() {
-    var data = '<?php echo $js_sensor_params ?>';
-    //console.log(data);
-    if (data) {
-            var obj = JSON.parse(data)
-            //console.log(obj.length);
-
+        var data = '<?php echo $js_sensor_params ?>';
+        //console.log(data);
+        var obj = JSON.parse(data)
+        if (obj) {
+                //console.log(obj.length);
                 for (var y = 0; y < obj.length; y++) {
                   $('#sensor_temp_' + obj[y].sensor_id).load("ajax_fetch_data.php?id=" + obj[y].sensor_id + "&type=16").fadeIn("slow");
-                  //console.log(obj[y].time_id);
+                  //console.log(obj[y].sensor_id);
                 }
-    }
+        }
 
-    $('#settings_date').load("ajax_fetch_data.php?id=0&type=13").fadeIn("slow");
-    $('#footer_weather').load("ajax_fetch_data.php?id=0&type=14").fadeIn("slow");
-    $('#footer_all_running_time').load("ajax_fetch_data.php?id=0&type=17").fadeIn("slow");
-    setTimeout(loop, delay);
+        $('#settings_date').load("ajax_fetch_data.php?id=0&type=13").fadeIn("slow");
+        $('#footer_weather').load("ajax_fetch_data.php?id=0&type=14").fadeIn("slow");
+        $('#footer_all_running_time').load("ajax_fetch_data.php?id=0&type=17").fadeIn("slow");
+        setTimeout(loop, delay);
   })();
 });
 </script>
