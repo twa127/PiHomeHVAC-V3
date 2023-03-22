@@ -3215,7 +3215,7 @@ function show_hide_devices()
 
 function gw_location()
 {
- var e = document.getElementById();
+ var e = document.getElementById("gw_type");
  var selected_gw_type = e.value;
  if(selected_gw_type.includes("virtual")) {
         document.getElementById("serial_gw").style.display = 'none';
