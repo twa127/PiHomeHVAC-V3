@@ -3213,7 +3213,7 @@ function show_hide_devices()
  }
 }
 
-function gw_location(gw_version)
+function gw_location()
 {
  var e = document.getElementById();
  var selected_gw_type = e.value;
