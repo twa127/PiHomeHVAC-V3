@@ -23,6 +23,8 @@ confirm_logged_in();
 require_once(__DIR__.'/st_inc/connection.php');
 require_once(__DIR__.'/st_inc/functions.php');
 
+$page_refresh = page_refresh($conn);
+
 if(isset($_GET["frost"])) {
 	$frost_temp = $_GET['frost'];
 	$info_message = "Frost Protection Temperature Changed to $frost_temp&deg;";
@@ -74,3 +76,29 @@ if(isset($_GET["find_gw"])) {
 </div>
 <!-- /.container -->
 <?php include("footer.php");  ?>
+
+<script>
+
+// update page data every x seconds
+$(document).ready(function(){
+  var delay = '<?php echo $page_refresh ?>';
+
+  (function loop() {
+    var data = '<?php echo $js_sch_params ?>';
+    if (data.length > 0) {
+            var obj = JSON.parse(data)
+            //console.log(obj.length);
+
+                for (var y = 0; y < obj.length; y++) {
+                  $('#sch_status_' + obj[y].time_id).load("ajax_fetch_data.php?id=" + obj[y].time_id + "&type=18").fadeIn("slow");
+                  //console.log(obj[y].time_id);
+                }
+    }
+
+    $('#settings_date').load("ajax_fetch_data.php?id=0&type=13").fadeIn("slow");
+    $('#footer_weather').load("ajax_fetch_data.php?id=0&type=14").fadeIn("slow");
+    $('#footer_all_running_time').load("ajax_fetch_data.php?id=0&type=17").fadeIn("slow");
+    setTimeout(loop, delay);
+  })();
+});
+</script>
