@@ -99,7 +99,7 @@ $(document).ready(function(){
             //console.log(obj.length);
 
                 for (var y = 0; y < obj.length; y++) {
-                  $('#sch_status_' + obj[y].time_id).load("ajax_fetch_data.php?id=" + obj[y].time_id + "&type=18").fadeIn("slow");
+                  $('#sensor_temp_' + obj[y].sensor_id).load("ajax_fetch_data.php?id=" + obj[y].sensor_id + "&type=16").fadeIn("slow");
                   //console.log(obj[y].time_id);
                 }
     }
