@@ -647,6 +647,14 @@ if ($tzname == 1) {
 			echo "\033[36m".date('Y-m-d H:i:s'). "\033[0m - Temperature Unit !!!Wrong value, IDs 1 and 2!!!\n";
 		}
 	}
+
+        // Add MaxAir Banner to starup screen
+        if( strpos(file_get_contents("/etc/profile"),"sudo python3 /var/www/cron/login.py") === false) {
+                echo "\033[36m".date('Y-m-d H:i:s'). "\033[0m - Adding Startup Banner\n";
+                $fp = fopen('/etc/profile', 'a');
+                fwrite($fp, 'sudo python3 /var/www/cron/login.py');
+                fclose($fp);
+        }
 }
 
 echo "---------------------------------------------------------------------------------------- \n";
