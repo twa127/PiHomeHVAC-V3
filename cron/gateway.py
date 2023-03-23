@@ -213,32 +213,33 @@ def set_relays(
             'SELECT `mqtt_topic`, `on_payload`, `off_payload`  FROM `mqtt_devices` WHERE `type` = "1" AND `nodes_id` = (%s) AND `child_id` = (%s) LIMIT 1',
             [n_id, out_child_id],
         )
-        results_mqtt_r = cur.fetchone()
-        description_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
-        mqtt_topic = results_mqtt_r[description_to_index["mqtt_topic"]]
-        if int(out_payload) == out_on_trigger:
-            payload_str = results_mqtt_r[description_to_index["on_payload"]]
-        else:
-            payload_str = results_mqtt_r[description_to_index["off_payload"]]
-        print("\nSending the following MQTT Message:")
-        print("Topic: %s" % mqtt_topic)
-        print("Message: %s" % payload_str)
-        mqttClient.publish(
-            topic=mqtt_topic,
-            payload=payload_str,
-            qos=1,
-            retain=False,
-        )
-        cur.execute(
-            "UPDATE `messages_out` set sent=1 where id=%s", [out_id]
-        )  # update DB so this message will not be processed in next loop
-        con.commit()  # commit above
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        cur.execute(
-            "UPDATE `nodes` SET `last_seen`=%s, `sync`=0 WHERE id = %s",
-            [timestamp, n_id],
-        )
-        con.commit()
+        if cur.rowcount > 0:
+            results_mqtt_r = cur.fetchone()
+            description_to_index = dict((d[0], i) for i, d in enumerate(cur.description))
+            mqtt_topic = results_mqtt_r[description_to_index["mqtt_topic"]]
+            if int(out_payload) == out_on_trigger:
+                payload_str = results_mqtt_r[description_to_index["on_payload"]]
+            else:
+                payload_str = results_mqtt_r[description_to_index["off_payload"]]
+            print("\nSending the following MQTT Message:")
+            print("Topic: %s" % mqtt_topic)
+            print("Message: %s" % payload_str)
+            mqttClient.publish(
+                topic=mqtt_topic,
+                payload=payload_str,
+                qos=1,
+                retain=False,
+            )
+            cur.execute(
+                "UPDATE `messages_out` set sent=1 where id=%s", [out_id]
+            )  # update DB so this message will not be processed in next loop
+            con.commit()  # commit above
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            cur.execute(
+                "UPDATE `nodes` SET `last_seen`=%s, `sync`=0 WHERE id = %s",
+                [timestamp, n_id],
+            )
+            con.commit()
     elif node_type.find("Dummy") != -1 :  # process Dummy mode
         cur.execute(
             "UPDATE `messages_out` set sent=1 where id=%s", [out_id]
@@ -331,12 +332,16 @@ def on_connect(client, userdata, flags, rc):
         cur_mqtt.execute(
             'SELECT DISTINCT `mqtt_topic` FROM `mqtt_devices` WHERE `type` = "0"'
         )
-        for node in cur_mqtt.fetchall():
-            subscribe_topics.append((f"{node[0]}", 0))
-        client.subscribe(subscribe_topics)
-        print("Subscribed to the followint MQTT topics:")
-        for topic in subscribe_topics:
-            print(topic[0])
+        if cur_mqtt.rowcount > 0:
+            for node in cur_mqtt.fetchall():
+                subscribe_topics.append((f"{node[0]}", 0))
+            client.subscribe(subscribe_topics)
+            print("Subscribed to the followint MQTT topics:")
+            for topic in subscribe_topics:
+                print(topic[0])
+        else:
+            print("\nConnection failed\n")
+            MQTT_CONNECTED = 0
     else:
         print("\nConnection failed\n")
         MQTT_CONNECTED = 0
